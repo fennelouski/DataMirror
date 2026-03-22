@@ -2,9 +2,42 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>DataMirror shows you what location data your iPhone exposes when Location Always is granted — including how apps can track your movements even in the background.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>DataMirror shows your current coordinates, altitude, and accuracy level so you can see exactly what apps read when Location is permitted.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>DataMirror demonstrates what the Camera permission unlocks for apps. No photos or video are ever taken or saved.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>DataMirror shows what audio access looks like when the Microphone permission is granted. No audio is recorded or stored.</string>
+	<key>NSContactsUsageDescription</key>
+	<string>DataMirror illustrates what apps can see when Contacts access is granted. Your contact data is read locally and never leaves your device.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>DataMirror shows what calendar data is accessible when this permission is granted. No events are read, modified, or stored.</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>DataMirror illustrates what Reminders access allows apps to do. No reminder content is read or modified.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>DataMirror demonstrates what Full Photo Library access exposes. No photos are accessed, uploaded, or stored by this app.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>DataMirror shows what Bluetooth permission enables — such as nearby device discovery. No connections are made.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>DataMirror reads accelerometer and gyroscope data to show you the live motion signals your phone constantly generates.</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>DataMirror illustrates what Health access exposes when granted. No health data is read, stored, or shared.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>DataMirror shows what Speech Recognition access allows apps to do. No audio is captured or transcribed by this app.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>DataMirror uses Face ID to demonstrate the biometric authentication permission flow. No sensitive data is unlocked.</string>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>DataMirror shows you the impact of granting App Tracking Transparency. Allowing tracking here lets you see your advertising identifier — no data is shared with advertisers.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>
 	</array>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>LaunchBackground</string>
+	</dict>
 </dict>
 </plist>
