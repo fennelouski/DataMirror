@@ -28,6 +28,8 @@
 	<string>DataMirror shows what Speech Recognition access allows apps to do. No audio is captured or transcribed by this app.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>DataMirror uses Face ID to demonstrate the biometric authentication permission flow. No sensitive data is unlocked.</string>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>DataMirror illustrates what Media Library access exposes when granted. No music or media data is read, stored, or shared.</string>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>DataMirror shows you the impact of granting App Tracking Transparency. Allowing tracking here lets you see your advertising identifier — no data is shared with advertisers.</string>
 	<key>UIBackgroundModes</key>

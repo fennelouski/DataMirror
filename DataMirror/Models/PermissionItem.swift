@@ -1,4 +1,31 @@
 import Foundation
+import AVFoundation
+
+// MARK: - UngatedDataItem
+
+struct UngatedDataItem: Sendable {
+    let label: String
+    private let valueProvider: (@Sendable () -> String?)?
+
+    init(_ label: String, value: (@Sendable () -> String?)? = nil) {
+        self.label = label
+        self.valueProvider = value
+    }
+
+    var liveValue: String? { valueProvider?() }
+}
+
+extension UngatedDataItem: Equatable {
+    static func == (lhs: UngatedDataItem, rhs: UngatedDataItem) -> Bool {
+        lhs.label == rhs.label
+    }
+}
+
+extension UngatedDataItem: Hashable {
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(label)
+    }
+}
 
 // MARK: - PermissionType
 
@@ -129,7 +156,7 @@ struct PermissionItem: Equatable, Identifiable, Sendable {
     let grantLevels: [GrantLevel]
     let appCapabilities: [String]
     let advertiserInferences: [String]
-    let ungatedData: [String]
+    let ungatedData: [UngatedDataItem]
 }
 
 // MARK: - allItems
@@ -174,9 +201,15 @@ extension PermissionItem {
                 String(localized: "Restaurant and shopping habits"),
             ],
             ungatedData: [
-                String(localized: "Your IP address approximates your city regardless of location permission"),
-                String(localized: "Device timezone reveals your general region"),
-                String(localized: "App Store region and locale further narrow geographic inference"),
+                UngatedDataItem(String(localized: "Your IP address approximates your city regardless of location permission")),
+                UngatedDataItem(
+                    String(localized: "Device timezone reveals your general region"),
+                    value: { TimeZone.current.identifier }
+                ),
+                UngatedDataItem(
+                    String(localized: "App Store region and locale further narrow geographic inference"),
+                    value: { Locale.current.identifier }
+                ),
             ]
         ),
 
@@ -227,9 +260,15 @@ extension PermissionItem {
                 String(localized: "Political and religious affiliation from visited locations"),
             ],
             ungatedData: [
-                String(localized: "Your IP address approximates your city regardless of location permission"),
-                String(localized: "Device timezone reveals your general region"),
-                String(localized: "App Store region and locale further narrow geographic inference"),
+                UngatedDataItem(String(localized: "Your IP address approximates your city regardless of location permission")),
+                UngatedDataItem(
+                    String(localized: "Device timezone reveals your general region"),
+                    value: { TimeZone.current.identifier }
+                ),
+                UngatedDataItem(
+                    String(localized: "App Store region and locale further narrow geographic inference"),
+                    value: { Locale.current.identifier }
+                ),
             ]
         ),
 
@@ -270,9 +309,9 @@ extension PermissionItem {
                 String(localized: "Precise coordinates can uniquely identify your home and workplace"),
             ],
             ungatedData: [
-                String(localized: "Approximate location via IP is still accessible without this toggle"),
-                String(localized: "Cell tower region is observable by carrier partners"),
-                String(localized: "Wi-Fi SSID can be used to infer location without GPS"),
+                UngatedDataItem(String(localized: "Approximate location via IP is still accessible without this toggle")),
+                UngatedDataItem(String(localized: "Cell tower region is observable by carrier partners")),
+                UngatedDataItem(String(localized: "Wi-Fi SSID can be used to infer location without GPS")),
             ]
         ),
 
@@ -314,9 +353,9 @@ extension PermissionItem {
                 String(localized: "Scanned content can reveal product preferences"),
             ],
             ungatedData: [
-                String(localized: "Device model is accessible without any permission"),
-                String(localized: "Screen dimensions and display scale are readable without permission"),
-                String(localized: "App usage timing can infer camera-adjacent behavior"),
+                UngatedDataItem(String(localized: "Device model is accessible without any permission")),
+                UngatedDataItem(String(localized: "Screen dimensions and display scale are readable without permission")),
+                UngatedDataItem(String(localized: "App usage timing can infer camera-adjacent behavior")),
             ]
         ),
 
@@ -358,9 +397,17 @@ extension PermissionItem {
                 String(localized: "Voice patterns identify household members"),
             ],
             ungatedData: [
-                String(localized: "Device model and OS version signal audio hardware capability"),
-                String(localized: "App session timing correlates with vocal activity periods"),
-                String(localized: "Volume settings and headphone state are readable without permission"),
+                UngatedDataItem(String(localized: "Device model and OS version signal audio hardware capability")),
+                UngatedDataItem(String(localized: "App session timing correlates with vocal activity periods")),
+                UngatedDataItem(
+                    String(localized: "Volume settings and headphone state are readable without permission"),
+                    value: {
+                        let session = AVAudioSession.sharedInstance()
+                        let volume = session.outputVolume
+                        let route = session.currentRoute.outputs.first?.portName ?? "Speaker"
+                        return String(format: "%.0f%% · %@", volume * 100, route)
+                    }
+                ),
             ]
         ),
 
@@ -401,9 +448,9 @@ extension PermissionItem {
                 String(localized: "Fitness habits signal disposable income and age range"),
             ],
             ungatedData: [
-                String(localized: "Device accelerometer data is accessible to browsers via DeviceMotion API without a prompt"),
-                String(localized: "Battery drain patterns can correlate with physical activity"),
-                String(localized: "GPS speed (from location permission) is a proxy for activity type"),
+                UngatedDataItem(String(localized: "Device accelerometer data is accessible to browsers via DeviceMotion API without a prompt")),
+                UngatedDataItem(String(localized: "Battery drain patterns can correlate with physical activity")),
+                UngatedDataItem(String(localized: "GPS speed (from location permission) is a proxy for activity type")),
             ]
         ),
 
@@ -444,9 +491,20 @@ extension PermissionItem {
                 String(localized: "Subscription status indicates willingness to pay for digital services"),
             ],
             ungatedData: [
-                String(localized: "Default music app choice is partially inferred from app usage"),
-                String(localized: "Volume and audio route state are readable without permission"),
-                String(localized: "Device language and locale correlate with regional music preferences"),
+                UngatedDataItem(String(localized: "Default music app choice is partially inferred from app usage")),
+                UngatedDataItem(
+                    String(localized: "Volume and audio route state are readable without permission"),
+                    value: {
+                        let session = AVAudioSession.sharedInstance()
+                        let volume = session.outputVolume
+                        let route = session.currentRoute.outputs.first?.portName ?? "Speaker"
+                        return String(format: "%.0f%% · %@", volume * 100, route)
+                    }
+                ),
+                UngatedDataItem(
+                    String(localized: "Device language and locale correlate with regional music preferences"),
+                    value: { Locale.current.identifier }
+                ),
             ]
         ),
 
@@ -488,9 +546,9 @@ extension PermissionItem {
                 String(localized: "Household size and family status can be inferred"),
             ],
             ungatedData: [
-                String(localized: "Your own phone number is accessible to apps through the carrier without a contacts prompt"),
-                String(localized: "Device account email (Apple ID) can be used to correlate contact lists across devices"),
-                String(localized: "App referral codes reveal social connections without reading the address book"),
+                UngatedDataItem(String(localized: "Your own phone number is accessible to apps through the carrier without a contacts prompt")),
+                UngatedDataItem(String(localized: "Device account email (Apple ID) can be used to correlate contact lists across devices")),
+                UngatedDataItem(String(localized: "App referral codes reveal social connections without reading the address book")),
             ]
         ),
 
@@ -538,9 +596,12 @@ extension PermissionItem {
                 String(localized: "Social patterns reveal relationship status"),
             ],
             ungatedData: [
-                String(localized: "App invites and meeting links arrive via email, revealing scheduling patterns without calendar access"),
-                String(localized: "Push notification open-rate timing correlates with calendar schedule"),
-                String(localized: "Timezone and locale imply regional event patterns"),
+                UngatedDataItem(String(localized: "App invites and meeting links arrive via email, revealing scheduling patterns without calendar access")),
+                UngatedDataItem(String(localized: "Push notification open-rate timing correlates with calendar schedule")),
+                UngatedDataItem(
+                    String(localized: "Timezone and locale imply regional event patterns"),
+                    value: { TimeZone.current.identifier }
+                ),
             ]
         ),
 
@@ -580,9 +641,9 @@ extension PermissionItem {
                 String(localized: "Task content can signal life events"),
             ],
             ungatedData: [
-                String(localized: "Siri suggestion patterns can infer reminder topics without direct access"),
-                String(localized: "Notification interaction data leaks reminder cadence"),
-                String(localized: "App launch timing correlates with reminder-driven behavior"),
+                UngatedDataItem(String(localized: "Siri suggestion patterns can infer reminder topics without direct access")),
+                UngatedDataItem(String(localized: "Notification interaction data leaks reminder cadence")),
+                UngatedDataItem(String(localized: "App launch timing correlates with reminder-driven behavior")),
             ]
         ),
 
@@ -614,9 +675,9 @@ extension PermissionItem {
                 String(localized: "Note-sharing via other apps may expose content through those apps"),
             ],
             ungatedData: [
-                String(localized: "Notes shared as links expose content to recipient apps"),
-                String(localized: "Text copied from Notes enters the pasteboard, which apps can read"),
-                String(localized: "iCloud sync metadata may be visible to Apple's servers"),
+                UngatedDataItem(String(localized: "Notes shared as links expose content to recipient apps")),
+                UngatedDataItem(String(localized: "Text copied from Notes enters the pasteboard, which apps can read")),
+                UngatedDataItem(String(localized: "iCloud sync metadata may be visible to Apple's servers")),
             ]
         ),
 
@@ -674,9 +735,9 @@ extension PermissionItem {
                 String(localized: "Lifestyle and interest inference from image content"),
             ],
             ungatedData: [
-                String(localized: "Photos shared in apps expose EXIF metadata to those app servers"),
-                String(localized: "Photo count and storage size are readable via device storage APIs"),
-                String(localized: "iCloud Photo Library sync status leaks photo library size to Apple"),
+                UngatedDataItem(String(localized: "Photos shared in apps expose EXIF metadata to those app servers")),
+                UngatedDataItem(String(localized: "Photo count and storage size are readable via device storage APIs")),
+                UngatedDataItem(String(localized: "iCloud Photo Library sync status leaks photo library size to Apple")),
             ]
         ),
 
@@ -717,9 +778,9 @@ extension PermissionItem {
                 String(localized: "Faces in selected photos enable demographic inference"),
             ],
             ungatedData: [
-                String(localized: "Photos shared via other channels expose full EXIF data"),
-                String(localized: "iCloud shared album links expose photos to recipients"),
-                String(localized: "Screenshots taken within apps are saved without permission prompts"),
+                UngatedDataItem(String(localized: "Photos shared via other channels expose full EXIF data")),
+                UngatedDataItem(String(localized: "iCloud shared album links expose photos to recipients")),
+                UngatedDataItem(String(localized: "Screenshots taken within apps are saved without permission prompts")),
             ]
         ),
 
@@ -758,9 +819,9 @@ extension PermissionItem {
                 String(localized: "Confirms the app has camera or content creation capability"),
             ],
             ungatedData: [
-                String(localized: "Saved photos' EXIF data becomes readable via Photos app"),
-                String(localized: "Photo count growth rate is observable via storage APIs"),
-                String(localized: "App identity is embedded in saved photo metadata"),
+                UngatedDataItem(String(localized: "Saved photos' EXIF data becomes readable via Photos app")),
+                UngatedDataItem(String(localized: "Photo count growth rate is observable via storage APIs")),
+                UngatedDataItem(String(localized: "App identity is embedded in saved photo metadata")),
             ]
         ),
 
@@ -802,9 +863,9 @@ extension PermissionItem {
                 String(localized: "Reproductive health data is highly sensitive and regulated"),
             ],
             ungatedData: [
-                String(localized: "Motion and fitness data accessible via separate permission still infers health status"),
-                String(localized: "Purchase history from other apps can reveal pharmacy and supplement buying"),
-                String(localized: "Apple Health app usage frequency is a proxy for health consciousness"),
+                UngatedDataItem(String(localized: "Motion and fitness data accessible via separate permission still infers health status")),
+                UngatedDataItem(String(localized: "Purchase history from other apps can reveal pharmacy and supplement buying")),
+                UngatedDataItem(String(localized: "Apple Health app usage frequency is a proxy for health consciousness")),
             ]
         ),
 
@@ -845,9 +906,9 @@ extension PermissionItem {
                 String(localized: "Frequency of writes indicates health tracking engagement level"),
             ],
             ungatedData: [
-                String(localized: "Written health data is readable by all other apps granted read permission"),
-                String(localized: "HealthKit source list reveals which health apps are installed"),
-                String(localized: "Data types written reveal health concerns without reading prior data"),
+                UngatedDataItem(String(localized: "Written health data is readable by all other apps granted read permission")),
+                UngatedDataItem(String(localized: "HealthKit source list reveals which health apps are installed")),
+                UngatedDataItem(String(localized: "Data types written reveal health concerns without reading prior data")),
             ]
         ),
 
@@ -887,9 +948,9 @@ extension PermissionItem {
                 String(localized: "Cross-device identity linking via shared Bluetooth environments"),
             ],
             ungatedData: [
-                String(localized: "Classic Bluetooth state (on/off) is readable without permission"),
-                String(localized: "Paired device list length is partially inferred from app behavior"),
-                String(localized: "BLE beacon data from retail stores is collected by store apps already granted access"),
+                UngatedDataItem(String(localized: "Classic Bluetooth state (on/off) is readable without permission")),
+                UngatedDataItem(String(localized: "Paired device list length is partially inferred from app behavior")),
+                UngatedDataItem(String(localized: "BLE beacon data from retail stores is collected by store apps already granted access")),
             ]
         ),
 
@@ -929,9 +990,9 @@ extension PermissionItem {
                 String(localized: "Connected devices reveal household size and tech usage"),
             ],
             ungatedData: [
-                String(localized: "Public IP address is visible to all remote servers without any permission"),
-                String(localized: "Wi-Fi network name (SSID) is readable without local network permission in many scenarios"),
-                String(localized: "Network latency patterns reveal router type and internet provider"),
+                UngatedDataItem(String(localized: "Public IP address is visible to all remote servers without any permission")),
+                UngatedDataItem(String(localized: "Wi-Fi network name (SSID) is readable without local network permission in many scenarios")),
+                UngatedDataItem(String(localized: "Network latency patterns reveal router type and internet provider")),
             ]
         ),
 
@@ -972,9 +1033,9 @@ extension PermissionItem {
                 String(localized: "Device co-location reveals household and workplace relationships"),
             ],
             ungatedData: [
-                String(localized: "Bluetooth RSSI provides coarse proximity without UWB permission"),
-                String(localized: "Wi-Fi signal strength can be used as a proximity proxy"),
-                String(localized: "AirDrop discovery (when enabled) reveals nearby Apple devices"),
+                UngatedDataItem(String(localized: "Bluetooth RSSI provides coarse proximity without UWB permission")),
+                UngatedDataItem(String(localized: "Wi-Fi signal strength can be used as a proximity proxy")),
+                UngatedDataItem(String(localized: "AirDrop discovery (when enabled) reveals nearby Apple devices")),
             ]
         ),
 
@@ -1008,9 +1069,9 @@ extension PermissionItem {
                 String(localized: "Transit card scans reveal commute patterns"),
             ],
             ungatedData: [
-                String(localized: "Apple Pay NFC payments are processed without app permission but reveal merchant category to banks"),
-                String(localized: "NFC-enabled loyalty cards are scanned by retailers regardless of app permissions"),
-                String(localized: "NFC tag scan events logged by the tag itself are not controlled by iOS"),
+                UngatedDataItem(String(localized: "Apple Pay NFC payments are processed without app permission but reveal merchant category to banks")),
+                UngatedDataItem(String(localized: "NFC-enabled loyalty cards are scanned by retailers regardless of app permissions")),
+                UngatedDataItem(String(localized: "NFC tag scan events logged by the tag itself are not controlled by iOS")),
             ]
         ),
 
@@ -1050,9 +1111,9 @@ extension PermissionItem {
                 String(localized: "Authentication use signals high-value account activity"),
             ],
             ungatedData: [
-                String(localized: "App authentication frequency is a behavioral signal accessible without biometric data"),
-                String(localized: "Account login timing and patterns are logged server-side regardless of Face ID use"),
-                String(localized: "The presence of Face ID hardware is detectable without the permission"),
+                UngatedDataItem(String(localized: "App authentication frequency is a behavioral signal accessible without biometric data")),
+                UngatedDataItem(String(localized: "Account login timing and patterns are logged server-side regardless of Face ID use")),
+                UngatedDataItem(String(localized: "The presence of Face ID hardware is detectable without the permission")),
             ]
         ),
 
@@ -1095,9 +1156,9 @@ extension PermissionItem {
                 String(localized: "Retargeting based on app usage and content consumed"),
             ],
             ungatedData: [
-                String(localized: "Probabilistic device fingerprinting (screen size, OS version, timezone, language) works without the IDFA"),
-                String(localized: "Email-based identity matching at the app level is not controlled by ATT"),
-                String(localized: "First-party behavioral data within the app is collectable regardless of ATT status"),
+                UngatedDataItem(String(localized: "Probabilistic device fingerprinting (screen size, OS version, timezone, language) works without the IDFA")),
+                UngatedDataItem(String(localized: "Email-based identity matching at the app level is not controlled by ATT")),
+                UngatedDataItem(String(localized: "First-party behavioral data within the app is collectable regardless of ATT status")),
             ]
         ),
 
@@ -1137,9 +1198,9 @@ extension PermissionItem {
                 String(localized: "Integration patterns reveal which apps you use most"),
             ],
             ungatedData: [
-                String(localized: "App name is identifiable to Apple through Siri system logs regardless of permission"),
-                String(localized: "Spotlight indexing of app content happens independently of Siri permission"),
-                String(localized: "Usage frequency is observable to Apple through system analytics"),
+                UngatedDataItem(String(localized: "App name is identifiable to Apple through Siri system logs regardless of permission")),
+                UngatedDataItem(String(localized: "Spotlight indexing of app content happens independently of Siri permission")),
+                UngatedDataItem(String(localized: "Usage frequency is observable to Apple through system analytics")),
             ]
         ),
 
@@ -1179,9 +1240,9 @@ extension PermissionItem {
                 String(localized: "Voice data processed off-device may be retained"),
             ],
             ungatedData: [
-                String(localized: "Microphone permission (separate) is also required and can be used for raw audio"),
-                String(localized: "Keyboard dictation uses the same underlying service but is system-controlled"),
-                String(localized: "Voice search queries submitted via app text fields are logged server-side"),
+                UngatedDataItem(String(localized: "Microphone permission (separate) is also required and can be used for raw audio")),
+                UngatedDataItem(String(localized: "Keyboard dictation uses the same underlying service but is system-controlled")),
+                UngatedDataItem(String(localized: "Voice search queries submitted via app text fields are logged server-side")),
             ]
         ),
 
@@ -1229,9 +1290,9 @@ extension PermissionItem {
                 String(localized: "Response timing reveals daily schedule"),
             ],
             ungatedData: [
-                String(localized: "Device push token is registered with the app server regardless of notification permission"),
-                String(localized: "Silent background push notifications are received even when notifications are disabled"),
-                String(localized: "App badge count was visible on home screen as a secondary engagement signal before iOS 16"),
+                UngatedDataItem(String(localized: "Device push token is registered with the app server regardless of notification permission")),
+                UngatedDataItem(String(localized: "Silent background push notifications are received even when notifications are disabled")),
+                UngatedDataItem(String(localized: "App badge count was visible on home screen as a secondary engagement signal before iOS 16")),
             ]
         ),
 
@@ -1272,9 +1333,9 @@ extension PermissionItem {
                 String(localized: "Background refresh frequency indicates how actively an app is tracking you"),
             ],
             ungatedData: [
-                String(localized: "Silent push notifications trigger background work regardless of this setting"),
-                String(localized: "OS scheduler may wake apps for background tasks at system discretion"),
-                String(localized: "VoIP and location apps have separate background execution entitlements unaffected by this toggle"),
+                UngatedDataItem(String(localized: "Silent push notifications trigger background work regardless of this setting")),
+                UngatedDataItem(String(localized: "OS scheduler may wake apps for background tasks at system discretion")),
+                UngatedDataItem(String(localized: "VoIP and location apps have separate background execution entitlements unaffected by this toggle")),
             ]
         ),
 
@@ -1316,9 +1377,9 @@ extension PermissionItem {
                 String(localized: "Lock/unlock timing reveals when occupants leave and return home"),
             ],
             ungatedData: [
-                String(localized: "HomeKit accessory firmware update requests reveal device inventory to manufacturers"),
-                String(localized: "Smart home automation logs are stored on Apple's servers via iCloud"),
-                String(localized: "Wi-Fi network presence of smart home devices is detectable via local network scanning"),
+                UngatedDataItem(String(localized: "HomeKit accessory firmware update requests reveal device inventory to manufacturers")),
+                UngatedDataItem(String(localized: "Smart home automation logs are stored on Apple's servers via iCloud")),
+                UngatedDataItem(String(localized: "Wi-Fi network presence of smart home devices is detectable via local network scanning")),
             ]
         ),
 
@@ -1352,9 +1413,9 @@ extension PermissionItem {
                 String(localized: "Educational content preferences reveal learning level and subject interests"),
             ],
             ungatedData: [
-                String(localized: "iCloud account connected to Managed Apple ID links data to school institution"),
-                String(localized: "Screen Time data for educational apps is visible to parent/guardian accounts"),
-                String(localized: "App Store education category presence indicates student population"),
+                UngatedDataItem(String(localized: "iCloud account connected to Managed Apple ID links data to school institution")),
+                UngatedDataItem(String(localized: "Screen Time data for educational apps is visible to parent/guardian accounts")),
+                UngatedDataItem(String(localized: "App Store education category presence indicates student population")),
             ]
         ),
 
@@ -1395,9 +1456,9 @@ extension PermissionItem {
                 String(localized: "Focus mode changes correlate with context switches useful for behavioral profiling"),
             ],
             ungatedData: [
-                String(localized: "Message delivery receipts implicitly reveal Focus state to senders"),
-                String(localized: "App interaction timing correlates with Focus periods without explicit access"),
-                String(localized: "Screen Time data includes Focus duration accessible to Screen Time API"),
+                UngatedDataItem(String(localized: "Message delivery receipts implicitly reveal Focus state to senders")),
+                UngatedDataItem(String(localized: "App interaction timing correlates with Focus periods without explicit access")),
+                UngatedDataItem(String(localized: "Screen Time data includes Focus duration accessible to Screen Time API")),
             ]
         ),
     ]

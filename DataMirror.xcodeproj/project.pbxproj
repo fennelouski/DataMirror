@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		AA000001AA000001AA000001 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = AA000002AA000002AA000002 /* ComposableArchitecture */; };
+		BB000001BB000001BB000001 /* SnapshotTesting in Frameworks */ = {isa = PBXBuildFile; productRef = BB000002BB000002BB000002 /* SnapshotTesting */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -77,6 +78,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				BB000001BB000001BB000001 /* SnapshotTesting in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -154,6 +156,7 @@
 			);
 			name = DataMirrorTests;
 			packageProductDependencies = (
+				BB000002BB000002BB000002 /* SnapshotTesting */,
 			);
 			productName = DataMirrorTests;
 			productReference = 80BE7A532F7030E800C9DCD9 /* DataMirrorTests.xctest */;
@@ -216,6 +219,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				AA000003AA000003AA000003 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */,
+				BB000003BB000003BB000003 /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 80BE7A432F7030E600C9DCD9 /* Products */;
@@ -618,6 +622,14 @@
 				minimumVersion = 1.0.0;
 			};
 		};
+		BB000003BB000003BB000003 /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-snapshot-testing";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.12.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -625,6 +637,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = AA000003AA000003AA000003 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */;
 			productName = ComposableArchitecture;
+		};
+		BB000002BB000002BB000002 /* SnapshotTesting */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = BB000003BB000003BB000003 /* XCRemoteSwiftPackageReference "swift-snapshot-testing" */;
+			productName = SnapshotTesting;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

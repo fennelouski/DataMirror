@@ -1,6 +1,3 @@
-// FIXED: Removed Action: Equatable (conflicts with @Reducer macro)
-// FIXED: Changed body return type to some Reducer<State, Action> (avoids circular reference)
-// ADDED: Primer screen, History tab, hasSeenPrimer persistence
 import ComposableArchitecture
 import Foundation
 
@@ -14,20 +11,52 @@ struct AppFeature {
         var history = HistoryFeature.State()
         var inferred = InferredFeature.State()
         var primer = PrimerFeature.State()
-        var selectedTab: Tab = .dashboard
+        var selectedSection: Section? = .dashboard
         var hasSeenPrimer: Bool = false
     }
 
-    enum Tab: Equatable, CaseIterable {
+    enum Section: Hashable, Identifiable, CaseIterable {
         case dashboard
         case permissions
         case inferred
         case history
         case about
+
+        var id: Self { self }
+
+        var title: String {
+            switch self {
+            case .dashboard: String(localized: "Dashboard")
+            case .permissions: String(localized: "Permissions")
+            case .inferred: String(localized: "Inferred")
+            case .history: String(localized: "History")
+            case .about: String(localized: "About")
+            }
+        }
+
+        var subtitle: String {
+            switch self {
+            case .dashboard: String(localized: "Live sensor readings")
+            case .permissions: String(localized: "Manage app access")
+            case .inferred: String(localized: "What can be deduced about you")
+            case .history: String(localized: "Exposure score over time")
+            case .about: String(localized: "About DataMirror")
+            }
+        }
+
+        var systemImage: String {
+            switch self {
+            case .dashboard: "waveform"
+            case .permissions: "lock.shield"
+            case .inferred: "brain.head.profile"
+            case .history: "chart.line.uptrend.xyaxis"
+            case .about: "info.circle"
+            }
+        }
     }
 
     enum Action {
-        case tabSelected(Tab)
+        case sectionSelected(Section?)
         case dashboard(DashboardFeature.Action)
         case permissions(PermissionsFeature.Action)
         case about(AboutFeature.Action)
@@ -61,8 +90,8 @@ struct AppFeature {
         }
         Reduce { state, action in
             switch action {
-            case let .tabSelected(tab):
-                state.selectedTab = tab
+            case let .sectionSelected(section):
+                state.selectedSection = section
                 return .none
 
             case .onAppear:

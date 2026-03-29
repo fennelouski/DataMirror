@@ -1,8 +1,3 @@
-// FIXED: Removed Action: Equatable (conflicts with @Reducer macro)
-// FIXED: Changed body return type to some Reducer<State, Action> (avoids circular reference)
-// FIXED: Replaced CancelID enum with string literal (MainActor isolation conflict)
-// FIXED: Captured dependency closures before .run (actor isolation)
-// FIXED: Added scenePhaseChanged action for score refresh on foreground
 import ComposableArchitecture
 import SwiftUI
 import os

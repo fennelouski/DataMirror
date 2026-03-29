@@ -129,6 +129,9 @@ private func fetchCurrentActivity(manager: CMMotionActivityManager) async -> CMM
     #if targetEnvironment(simulator)
     return nil
     #else
+    guard CMMotionActivityManager.authorizationStatus() == .authorized else {
+        return nil
+    }
     return await withCheckedContinuation { continuation in
         manager.queryActivityStarting(
             from: Date().addingTimeInterval(-10),

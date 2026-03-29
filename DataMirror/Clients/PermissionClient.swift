@@ -1,6 +1,3 @@
-// FIXED: Added .limited case to contactsStatus() switch (non-exhaustive in iOS 18+)
-// FIXED: Replaced deprecated CLLocationManager.authorizationStatus() with instance property
-// FIXED: Replaced deprecated INPreferences with .notAvailable for siriStatus (iOS 18 deprecation)
 import Foundation
 import CoreLocation
 import AVFoundation

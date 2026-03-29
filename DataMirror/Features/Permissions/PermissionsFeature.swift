@@ -16,7 +16,6 @@ struct PermissionsFeature {
     enum Action {
         case onAppear
         case permissionsLoaded([PermissionItem])
-        case requestPermissionTapped(PermissionType)
         case permissionRequestCompleted(PermissionType, PermissionStatus)
         case openSettingsTapped
         case permissionTapped(PermissionType)
@@ -41,12 +40,6 @@ struct PermissionsFeature {
                 state.permissions = IdentifiedArrayOf(uniqueElements: items)
                 return .none
 
-            case let .requestPermissionTapped(type_):
-                return .run { [permissionClient] send in
-                    let status = await permissionClient.request(type_)
-                    await send(.permissionRequestCompleted(type_, status))
-                }
-
             case let .permissionRequestCompleted(type_, status):
                 if let idx = state.permissions.firstIndex(where: { $0.id == type_ }) {
                     state.permissions[idx].status = status
@@ -56,7 +49,7 @@ struct PermissionsFeature {
             case .openSettingsTapped:
                 return .run { _ in
                     guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-                    await UIApplication.shared.open(url)
+                    await MainActor.run { UIApplication.shared.open(url) }
                 }
 
             case let .permissionTapped(type_):
@@ -67,13 +60,13 @@ struct PermissionsFeature {
             case .path(.element(_, action: .permissionDetail(.openSettingsTapped))):
                 return .run { _ in
                     guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-                    await UIApplication.shared.open(url)
+                    await MainActor.run { UIApplication.shared.open(url) }
                 }
 
             case .path(.element(_, action: .permissionDetail(.openSettingsAlertConfirmed))):
                 return .run { _ in
                     guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-                    await UIApplication.shared.open(url)
+                    await MainActor.run { UIApplication.shared.open(url) }
                 }
 
             case let .path(.element(_, action: .permissionDetail(.requestPermissionTapped(type_)))):

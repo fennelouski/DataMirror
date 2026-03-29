@@ -121,10 +121,18 @@ struct PermissionDetailView: View {
     @ViewBuilder
     private var ungatedDataSection: some View {
         Section {
-            ForEach(store.item.ungatedData, id: \.self) { bullet in
-                Label(bullet, systemImage: "lock.open.fill")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+            ForEach(store.item.ungatedData, id: \.self) { item in
+                VStack(alignment: .leading, spacing: 4) {
+                    Label(item.label, systemImage: "lock.open.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    if let value = item.liveValue {
+                        Text(value)
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.tertiary)
+                            .padding(.leading, 28)
+                    }
+                }
             }
         } header: {
             Text(String(localized: "What You Can't Block"))

@@ -1,6 +1,3 @@
-// FIXED: Changed liveValue to @MainActor (was nonisolated, couldn't access MainActor shared instance)
-// FIXED: Made currentPath thread-safe with OSAllocatedUnfairLock (was mutated from Sendable closure)
-// FIXED: Removed unnecessary await on buildGroups() (already @MainActor)
 import Foundation
 import Darwin
 import CoreMotion
@@ -821,7 +818,39 @@ private final class LiveSensorClient: @unchecked Sendable {
         }
         return false
     }
-    
+
+    /// Checks whether GPS coordinates plausibly match the continent implied by a timezone prefix.
+    /// Uses generous bounding boxes — the goal is catching obvious cross-region spoofing
+    /// (e.g. timezone says "America" but GPS is in central Europe), not pinpoint accuracy.
+    /// Returns true when the continent is unknown or hard to bound (Pacific, Atlantic, Indian)
+    /// so we don't produce false positives for island timezones.
+    nonisolated private func gpsMatchesTimezoneContinent(_ continent: String, lat: Double, lon: Double) -> Bool {
+        switch continent {
+        case "America":
+            // North and South America: roughly west of -25° longitude
+            return lon <= -25
+        case "Europe":
+            // Europe: roughly -30° to 45° longitude, above 30° latitude
+            return lon >= -30 && lon <= 50 && lat >= 30
+        case "Asia":
+            // Asia: roughly east of 25° longitude, excluding southern Africa / Australia
+            return lon >= 25 && lat >= -15
+        case "Africa":
+            // Africa: roughly -20° to 55° longitude, -40° to 40° latitude
+            return lon >= -20 && lon <= 55 && lat >= -40 && lat <= 40
+        case "Australia":
+            // Australia and nearby: roughly 110–160° E, south of 0°
+            return lon >= 105 && lon <= 165 && lat <= 0
+        case "Antarctica":
+            return lat <= -55
+        case "Arctic":
+            return lat >= 65
+        default:
+            // Pacific, Atlantic, Indian ocean islands — too scattered to bound reliably
+            return true
+        }
+    }
+
     @MainActor
     private func buildMotionGroup(
         now: Date
@@ -1207,42 +1236,48 @@ private final class LiveSensorClient: @unchecked Sendable {
             )
         }
         
-        // GPS vs timezone consistency: GPS longitude implies a rough UTC offset (15° per hour).
-        // A large mismatch between that and the device timezone suggests GPS spoofing.
+        // GPS vs timezone consistency — two independent signals:
+        //
+        // 1. UTC offset: GPS longitude ÷ 15° ≈ expected UTC hour.
+        //    Tolerance is ±4h — covers western China (UTC+8, ~3h off by longitude) and all of
+        //    Europe (worst case: Spain on CET, ~2.5h off by longitude). Still catches
+        //    cross-hemisphere spoofing which is typically 8–14h off.
+        //
+        // 2. Continent prefix: "America/New_York", "Europe/Paris", "Asia/Tokyo" etc. encode
+        //    both the hemisphere and latitude band. A continent mismatch catches spoofed GPS
+        //    that coincidentally lands near the right UTC offset, and also catches north/south
+        //    discrepancies that pure longitude offset cannot detect.
         let gpsTZConsistencyReading: SensorReading? = location.map { loc in
+            let deviceTZId = TimeZone.current.identifier
             let deviceOffsetHours = TimeZone.current.secondsFromGMT() / 3600
-            let gpsImpliedOffset = Int(
-                (
-                    loc.coordinate.longitude / 15.0
-                ).rounded()
-            )
-            let hourDiff = abs(
-                deviceOffsetHours - gpsImpliedOffset
-            )
-            let formatUTC = {
-                (
-                    h: Int
-                ) in h >= 0 ? "UTC+\(h)" : "UTC\(h)"
-            }
+            let gpsImpliedOffset = Int((loc.coordinate.longitude / 15.0).rounded())
+            let hourDiff = abs(deviceOffsetHours - gpsImpliedOffset)
+
+            let tzContinent = deviceTZId.split(separator: "/").first.map(String.init)
+            let continentMatch = tzContinent.map {
+                gpsMatchesTimezoneContinent($0, lat: loc.coordinate.latitude, lon: loc.coordinate.longitude)
+            } ?? true
+
+            let offsetMismatch = hourDiff > 4
+            let continentMismatch = !continentMatch
+
             let value: String
-            if hourDiff <= 2 {
-                value = String(
-                    localized: "Consistent — GPS longitude matches device timezone"
-                )
+            if !offsetMismatch && !continentMismatch {
+                value = String(localized: "Consistent — GPS region matches timezone")
             } else {
-                value = String(
-                    localized: "Inconsistent — GPS implies \(formatUTC(
-gpsImpliedOffset
-)) but timezone is \(formatUTC(
-deviceOffsetHours
-)). Possible GPS spoofing."
-                )
+                let formatUTC = { (h: Int) -> String in h >= 0 ? "UTC+\(h)" : "UTC\(h)" }
+                var issues: [String] = []
+                if continentMismatch, let continent = tzContinent {
+                    issues.append(String(localized: "timezone says '\(continent)' but GPS is outside that region"))
+                }
+                if offsetMismatch {
+                    issues.append(String(localized: "GPS implies \(formatUTC(gpsImpliedOffset)), timezone is \(formatUTC(deviceOffsetHours))"))
+                }
+                value = String(localized: "Inconsistent — \(issues.joined(separator: "; ")). Possible GPS spoofing.")
             }
             return SensorReading(
                 id: "location.tz.gps",
-                label: String(
-                    localized: "GPS vs Timezone"
-                ),
+                label: String(localized: "GPS vs Timezone"),
                 value: value,
                 unit: nil,
                 lastUpdated: now,

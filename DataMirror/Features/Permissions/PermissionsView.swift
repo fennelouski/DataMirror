@@ -47,8 +47,7 @@ struct PermissionsView: View {
                         ForEach(items) { item in
                             PermissionRow(
                                 item: item,
-                                onTap: { store.send(.permissionTapped(item.id)) },
-                                onRequest: { store.send(.requestPermissionTapped(item.id)) }
+                                onTap: { store.send(.permissionTapped(item.id)) }
                             )
                         }
                     } header: {
@@ -65,7 +64,6 @@ struct PermissionsView: View {
 private struct PermissionRow: View {
     let item: PermissionItem
     let onTap: () -> Void
-    let onRequest: () -> Void
 
     var body: some View {
         Button(action: onTap) {
@@ -87,16 +85,6 @@ private struct PermissionRow: View {
                 }
 
                 Spacer()
-
-                if item.status == .notDetermined && item.isUserPromptable {
-                    Button(String(localized: "Allow")) {
-                        onRequest()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.mini)
-                    .accessibilityLabel(String(localized: "Request \(item.name) permission"))
-                    .accessibilityHint(String(localized: "Requests \(item.name) access from iOS"))
-                }
 
                 Image(systemName: "chevron.right")
                     .font(.caption)

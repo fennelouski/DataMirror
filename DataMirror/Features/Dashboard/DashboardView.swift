@@ -209,7 +209,7 @@ private struct LockedSensorCard: View {
         case .denied:
             String(localized: "Enable in Settings → Privacy to see live data.")
         case .notDetermined:
-            String(localized: "Go to the Permissions tab to request access.")
+            String(localized: "Go to the Permissions section to request access.")
         case .restricted:
             String(localized: "Access is restricted by your organization or parental controls.")
         default:

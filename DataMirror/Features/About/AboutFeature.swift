@@ -1,5 +1,3 @@
-// FIXED: Moved appVersion default from closure to static method (closure caused type ambiguity under @ObservableState)
-// FIXED: Replaced Reduce { .none } with EmptyReducer() (unreachable code warning with empty Action)
 import ComposableArchitecture
 import Foundation
 
