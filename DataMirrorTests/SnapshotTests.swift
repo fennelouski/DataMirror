@@ -2,6 +2,17 @@
 //  SnapshotTests.swift
 //  DataMirrorTests
 //
+//  Pixel snapshot tests (swift-snapshot-testing). Reference images:
+//  `DataMirrorTests/__Snapshots__/SnapshotTests/*.png`.
+//
+//  Use one stable simulator when recording and when asserting (pixel comparison is sensitive to OS
+//  and device). References here were recorded on an iPhone 17 simulator (iOS 26.4). Layout uses
+//  `ViewImageConfig.iPhone13` from SnapshotTesting so sizes are consistent across runs.
+//
+//  Recording: default is `missing` (writes new PNGs when absent, then fails once—re-run to pass).
+//  Set environment variable `SNAPSHOT_TESTING_RECORD` to `all` to re-record everything, or `failed`
+//  to update only failing snapshots. See `SnapshotTestingConfiguration.Record` in SnapshotTesting.
+//
 
 import ComposableArchitecture
 import SnapshotTesting
@@ -13,8 +24,8 @@ import XCTest
 @MainActor
 final class SnapshotTests: XCTestCase {
 
-    /// Mirrors `PermissionClient.testValue.loadAll()` so list snapshots skip async loading.
-    private static let snapshotPermissionItems: [PermissionItem] = PermissionItem.allItems.map { item in
+    /// Mirrors `PermissionClient.testValue.loadAll()` (platform-filtered list) so snapshots skip async loading.
+    private static let snapshotPermissionItems: [PermissionItem] = PermissionItem.listedItems.map { item in
         PermissionItem(
             id: item.id,
             name: item.name,

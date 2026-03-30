@@ -7,7 +7,7 @@ struct ExposureScore: Equatable, Sendable {
     let behavioralScore: Int
     let deviceScore: Int
     let summary: String
-    let topThreeToRevoke: [(PermissionType, Int)]
+    let topContributors: [(PermissionType, Int)]
 
     static func == (lhs: ExposureScore, rhs: ExposureScore) -> Bool {
         lhs.total == rhs.total
@@ -16,8 +16,8 @@ struct ExposureScore: Equatable, Sendable {
         && lhs.behavioralScore == rhs.behavioralScore
         && lhs.deviceScore == rhs.deviceScore
         && lhs.summary == rhs.summary
-        && lhs.topThreeToRevoke.map(\.0) == rhs.topThreeToRevoke.map(\.0)
-        && lhs.topThreeToRevoke.map(\.1) == rhs.topThreeToRevoke.map(\.1)
+        && lhs.topContributors.map(\.0) == rhs.topContributors.map(\.0)
+        && lhs.topContributors.map(\.1) == rhs.topContributors.map(\.1)
     }
 
     nonisolated static let zero = ExposureScore(
@@ -26,8 +26,8 @@ struct ExposureScore: Equatable, Sendable {
         identityScore: 0,
         behavioralScore: 0,
         deviceScore: 0,
-        summary: String(localized: "Loading your exposure score…"),
-        topThreeToRevoke: []
+        summary: String(localized: "Loading your permission overview…"),
+        topContributors: []
     )
 
     nonisolated static let weights: [PermissionType: Int] = [
@@ -76,11 +76,11 @@ struct ExposureScore: Equatable, Sendable {
         let summary: String
         switch capped {
         case 0..<30:
-            summary = String(localized: "Your exposure footprint is minimal. You've shared very little sensor data with apps.")
+            summary = String(localized: "Few granted permissions are active right now, so apps have limited access to sensor and personal data from this overview.")
         case 30..<60:
-            summary = String(localized: "You have a moderate exposure profile. A few high-impact permissions are active.")
+            summary = String(localized: "A moderate set of permissions is active. The breakdown below shows where access is concentrated.")
         default:
-            summary = String(localized: "Your exposure score is high. Revoking the permissions below would significantly reduce your profile.")
+            summary = String(localized: "Several high-impact permissions are active. See the list below for which ones contribute the most to this overview.")
         }
 
         return ExposureScore(
@@ -90,7 +90,7 @@ struct ExposureScore: Equatable, Sendable {
             behavioralScore: min(behavioralScore, 20),
             deviceScore: min(deviceScore, 20),
             summary: summary,
-            topThreeToRevoke: topThree
+            topContributors: topThree
         )
     }
 }

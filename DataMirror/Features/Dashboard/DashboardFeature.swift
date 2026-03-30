@@ -12,6 +12,7 @@ struct DashboardFeature {
         var score: ExposureScore = .zero
         var isPolling: Bool = false
         var permissions: IdentifiedArrayOf<PermissionItem> = []
+        var selectedSensorGroupID: String?
     }
 
     enum Action {
@@ -21,6 +22,8 @@ struct DashboardFeature {
         case scoreUpdated(ExposureScore)
         case permissionsLoaded([PermissionItem])
         case scenePhaseChanged(ScenePhase)
+        case sensorGroupTapped(String)
+        case sensorGroupDetailDismissed
     }
 
     @Dependency(\.sensorClient) var sensorClient
@@ -53,6 +56,17 @@ struct DashboardFeature {
 
             case let .sensorGroupsUpdated(groups):
                 state.sensorGroups = IdentifiedArrayOf(uniqueElements: groups)
+                if let id = state.selectedSensorGroupID, state.sensorGroups[id: id] == nil {
+                    state.selectedSensorGroupID = nil
+                }
+                return .none
+
+            case let .sensorGroupTapped(id):
+                state.selectedSensorGroupID = id
+                return .none
+
+            case .sensorGroupDetailDismissed:
+                state.selectedSensorGroupID = nil
                 return .none
 
             case let .scoreUpdated(score):

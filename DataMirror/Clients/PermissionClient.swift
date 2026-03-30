@@ -35,8 +35,9 @@ extension PermissionClient: DependencyKey {
     nonisolated static var liveValue: PermissionClient {
         PermissionClient(
             loadAll: {
-                await withTaskGroup(of: (PermissionType, PermissionStatus).self) { group in
-                    for type_ in PermissionType.allCases {
+                let listedTypes = PermissionType.typesListedInPermissionsUI
+                return await withTaskGroup(of: (PermissionType, PermissionStatus).self) { group in
+                    for type_ in listedTypes {
                         group.addTask {
                             let status = await LivePermissionClient.currentStatus(for: type_)
                             return (type_, status)
@@ -46,7 +47,7 @@ extension PermissionClient: DependencyKey {
                     for await (type_, status) in group {
                         results[type_] = status
                     }
-                    return PermissionItem.allItems.map { item in
+                    return PermissionItem.listedItems.map { item in
                         PermissionItem(
                             id: item.id,
                             name: item.name,
@@ -82,7 +83,7 @@ extension PermissionClient: DependencyKey {
     nonisolated static var testValue: PermissionClient {
         PermissionClient(
             loadAll: {
-                PermissionItem.allItems.map { item in
+                PermissionItem.listedItems.map { item in
                     PermissionItem(
                         id: item.id,
                         name: item.name,
@@ -118,8 +119,27 @@ extension DependencyValues {
 
 private enum LivePermissionClient {
 
+    /// Minimal HealthKit types used only to trigger the system authorization UI and reflect status. DataMirror does not query or persist samples.
+    private enum HealthKitDemoTypes {
+        nonisolated static func readTypes() -> Set<HKObjectType> {
+            Set([
+                HKQuantityType.quantityType(forIdentifier: .stepCount)!,
+                HKQuantityType.quantityType(forIdentifier: .heartRate)!,
+            ])
+        }
+
+        nonisolated static func writeSampleTypes() -> Set<HKSampleType> {
+            Set([HKQuantityType.quantityType(forIdentifier: .stepCount)!])
+        }
+    }
+
     static func currentStatus(for type_: PermissionType) async -> PermissionStatus {
-        currentStatusSync(for: type_)
+        switch type_ {
+        case .notifications:
+            return await notificationsAuthorizationStatus()
+        default:
+            return currentStatusSync(for: type_)
+        }
     }
 
     nonisolated static func currentStatusSync(for type_: PermissionType) -> PermissionStatus {
@@ -153,9 +173,9 @@ private enum LivePermissionClient {
         case .motionFitness:
             return motionFitnessStatus()
         case .healthRead:
-            return healthStatus()
+            return healthReadAuthorizationStatus()
         case .healthWrite:
-            return healthStatus()
+            return healthWriteAuthorizationStatus()
         case .notifications:
             return .notDetermined
         case .tracking:
@@ -210,15 +230,15 @@ private enum LivePermissionClient {
         case .photosAddOnly:
             return await requestPhotos(level: .addOnly)
         case .bluetooth:
-            return .notAvailable
+            return await requestBluetooth()
         case .localNetwork:
             return .notAvailable
         case .motionFitness:
             return await requestMotion()
         case .healthRead:
-            return .notAvailable
+            return await requestHealthRead()
         case .healthWrite:
-            return .notAvailable
+            return await requestHealthWrite()
         case .notifications:
             return await requestNotifications()
         case .tracking:
@@ -356,9 +376,35 @@ private enum LivePermissionClient {
         #endif
     }
 
-    private nonisolated static func healthStatus() -> PermissionStatus {
+    private nonisolated static func aggregateHealthAuthorizationStatus(for types: [HKObjectType]) -> PermissionStatus {
         guard HKHealthStore.isHealthDataAvailable() else { return .notAvailable }
-        return .notDetermined
+        guard !types.isEmpty else { return .notAvailable }
+        let store = HKHealthStore()
+        var hasAuthorized = false
+        var hasNotDetermined = false
+        for type in types {
+            switch store.authorizationStatus(for: type) {
+            case .notDetermined:
+                hasNotDetermined = true
+            case .sharingAuthorized:
+                hasAuthorized = true
+            case .sharingDenied:
+                break
+            @unknown default:
+                break
+            }
+        }
+        if hasAuthorized { return .granted }
+        if hasNotDetermined { return .notDetermined }
+        return .denied
+    }
+
+    private nonisolated static func healthReadAuthorizationStatus() -> PermissionStatus {
+        aggregateHealthAuthorizationStatus(for: Array(HealthKitDemoTypes.readTypes()))
+    }
+
+    private nonisolated static func healthWriteAuthorizationStatus() -> PermissionStatus {
+        aggregateHealthAuthorizationStatus(for: Array(HealthKitDemoTypes.writeSampleTypes().map { $0 as HKObjectType }))
     }
 
     private nonisolated static func attStatus() -> PermissionStatus {
@@ -434,6 +480,34 @@ private enum LivePermissionClient {
         }
     }
 
+    private static func requestHealthRead() async -> PermissionStatus {
+        guard HKHealthStore.isHealthDataAvailable() else { return .notAvailable }
+        let store = HKHealthStore()
+        let read = HealthKitDemoTypes.readTypes()
+        return await withCheckedContinuation { continuation in
+            store.requestAuthorization(toShare: [], read: read) { _, error in
+                if let error {
+                    logger.error("Health read authorization request failed: \(error.localizedDescription)")
+                }
+                continuation.resume(returning: healthReadAuthorizationStatus())
+            }
+        }
+    }
+
+    private static func requestHealthWrite() async -> PermissionStatus {
+        guard HKHealthStore.isHealthDataAvailable() else { return .notAvailable }
+        let store = HKHealthStore()
+        let toShare = HealthKitDemoTypes.writeSampleTypes()
+        return await withCheckedContinuation { continuation in
+            store.requestAuthorization(toShare: toShare, read: []) { _, error in
+                if let error {
+                    logger.error("Health write authorization request failed: \(error.localizedDescription)")
+                }
+                continuation.resume(returning: healthWriteAuthorizationStatus())
+            }
+        }
+    }
+
     // MARK: Request helpers
 
     @MainActor
@@ -492,6 +566,26 @@ private enum LivePermissionClient {
         }
     }
 
+    @MainActor
+    private static func requestBluetooth() async -> PermissionStatus {
+        #if targetEnvironment(simulator)
+        return .notAvailable
+        #else
+        switch CBCentralManager.authorization {
+        case .allowedAlways, .denied, .restricted:
+            return bluetoothStatus()
+        case .notDetermined:
+            break
+        @unknown default:
+            return bluetoothStatus()
+        }
+        let delegate = BluetoothRequestDelegate()
+        delegate.start()
+        await delegate.waitForAuthorizationResolved()
+        return bluetoothStatus()
+        #endif
+    }
+
     private static func requestMotion() async -> PermissionStatus {
         #if targetEnvironment(simulator)
         return .notAvailable
@@ -508,6 +602,20 @@ private enum LivePermissionClient {
             }
         }
         #endif
+    }
+
+    private static func notificationsAuthorizationStatus() async -> PermissionStatus {
+        let settings = await UNUserNotificationCenter.current().notificationSettings()
+        switch settings.authorizationStatus {
+        case .notDetermined:
+            return .notDetermined
+        case .denied:
+            return .denied
+        case .authorized, .provisional, .ephemeral:
+            return .granted
+        @unknown default:
+            return .notAvailable
+        }
     }
 
     private static func requestNotifications() async -> PermissionStatus {
@@ -749,6 +857,42 @@ private final class RequestLocationDelegate: NSObject, CLLocationManagerDelegate
     }
 
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        continuation.withLock { cont in
+            cont?.resume()
+            cont = nil
+        }
+    }
+}
+
+// MARK: - CBCentralManagerDelegate for Bluetooth authorization
+
+private final class BluetoothRequestDelegate: NSObject, CBCentralManagerDelegate, Sendable {
+    private let continuation = OSAllocatedUnfairLock<CheckedContinuation<Void, Never>?>(initialState: nil)
+    private var central: CBCentralManager?
+
+    func start() {
+        central = CBCentralManager(delegate: self, queue: .main)
+    }
+
+    func waitForAuthorizationResolved() async {
+        await withCheckedContinuation { cont in
+            continuation.withLock { $0 = cont }
+        }
+    }
+
+    nonisolated func centralManagerDidUpdateState(_ central: CBCentralManager) {
+        let shouldResume: Bool
+        if central.state == .unsupported {
+            shouldResume = true
+        } else {
+            switch CBCentralManager.authorization {
+            case .notDetermined:
+                shouldResume = false
+            default:
+                shouldResume = true
+            }
+        }
+        guard shouldResume else { return }
         continuation.withLock { cont in
             cont?.resume()
             cont = nil

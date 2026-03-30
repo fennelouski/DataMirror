@@ -24,6 +24,8 @@
 	<string>DataMirror reads accelerometer and gyroscope data to show you the live motion signals your phone constantly generates.</string>
 	<key>NSHealthShareUsageDescription</key>
 	<string>DataMirror illustrates what Health access exposes when granted. No health data is read, stored, or shared.</string>
+	<key>NSHealthUpdateUsageDescription</key>
+	<string>DataMirror illustrates what Health write access allows when granted. No health data is written, stored, or shared outside the permission demonstration.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>DataMirror shows what Speech Recognition access allows apps to do. No audio is captured or transcribed by this app.</string>
 	<key>NSFaceIDUsageDescription</key>
@@ -32,6 +34,8 @@
 	<string>DataMirror illustrates what Media Library access exposes when granted. No music or media data is read, stored, or shared.</string>
 	<key>NSUserTrackingUsageDescription</key>
 	<string>DataMirror shows you the impact of granting App Tracking Transparency. Allowing tracking here lets you see your advertising identifier — no data is shared with advertisers.</string>
+	<key>NSFocusStatusUsageDescription</key>
+	<string>DataMirror demonstrates what Focus Status access allows when granted. Whether a Focus is active is shown only on your device and is not uploaded or shared.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>remote-notification</string>

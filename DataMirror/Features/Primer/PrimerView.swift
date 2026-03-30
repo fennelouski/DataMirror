@@ -17,8 +17,8 @@ struct PrimerView: View {
         ),
         (
             "chart.bar.fill",
-            String(localized: "Exposure Score"),
-            String(localized: "Know how much data surface you expose compared to your choices")
+            String(localized: "Permission overview"),
+            String(localized: "See how granted permissions add up, with plain-language context for your choices")
         ),
     ]
 
@@ -26,9 +26,10 @@ struct PrimerView: View {
         VStack(spacing: 32) {
             Spacer()
 
-            Image(systemName: "lock.shield.fill")
-                .font(.system(size: 72))
-                .foregroundStyle(Color.accentColor)
+            Image("Icon")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 72, height: 72)
                 .accessibilityHidden(true)
 
             VStack(spacing: 8) {

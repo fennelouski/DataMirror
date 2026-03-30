@@ -1265,6 +1265,13 @@ extension PermissionItem {
                     isCurrentSelection: false
                 ),
                 GrantLevel(
+                    id: "notifications.scheduledSummary",
+                    label: String(localized: "Allow in Scheduled Summary"),
+                    description: String(localized: "The app's notifications are included in your Notification Summary and delivered at the scheduled times you choose in Settings, instead of immediately."),
+                    dataAccessSummary: String(localized: "Notifications are batched with other apps’ summary items. Delivery is delayed until the next summary window, but content still appears when you expand the summary. Open and interaction timing can still be inferred when you engage with the digest."),
+                    isCurrentSelection: false
+                ),
+                GrantLevel(
                     id: "notifications.alertsOnly",
                     label: String(localized: "Alerts Only"),
                     description: String(localized: "The app can display silent banners only, without sounds or badge updates."),
@@ -1284,6 +1291,7 @@ extension PermissionItem {
                 String(localized: "Play sounds and vibrations"),
                 String(localized: "Update app badge counts"),
                 String(localized: "Send time-sensitive interruptions"),
+                String(localized: "Deliver in your scheduled Notification Summary instead of immediately"),
             ],
             advertiserInferences: [
                 String(localized: "Open rates signal engagement and interests"),

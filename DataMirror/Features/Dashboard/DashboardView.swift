@@ -2,28 +2,66 @@ import SwiftUI
 import ComposableArchitecture
 
 struct DashboardView: View {
-    let store: StoreOf<DashboardFeature>
+    @Bindable var store: StoreOf<DashboardFeature>
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                LazyVStack(spacing: 16) {
+            List {
+                Section {
                     ExposureScoreCard(score: store.score, permissions: Array(store.permissions))
+                }
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowBackground(Color.clear)
 
-                    ForEach(store.sensorGroups) { group in
-                        SensorGroupCard(group: group)
-                    }
-
+                Section(String(localized: "Sensors")) {
                     if store.sensorGroups.isEmpty {
-                        ProgressView(String(localized: "Loading sensors…"))
-                            .padding(.top, 40)
+                        HStack {
+                            Spacer()
+                            ProgressView(String(localized: "Loading sensors…"))
+                                .padding(.vertical, 24)
+                            Spacer()
+                        }
+                    } else {
+                        ForEach(store.sensorGroups) { group in
+                            Button {
+                                store.send(.sensorGroupTapped(group.id))
+                            } label: {
+                                HStack {
+                                    Label(group.name, systemImage: group.sfSymbol)
+                                    Spacer()
+                                    Text(
+                                        String(
+                                            localized: "\(group.readings.count) readings",
+                                            comment: "Subtitle on dashboard sensor group row; count is inserted."
+                                        )
+                                    )
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.tertiary)
+                                }
+                            }
+                            .accessibilityHint(String(localized: "Shows live readings for this sensor group"))
+                            .buttonStyle(.plain)
+                        }
                     }
                 }
-                .padding()
             }
+            .listStyle(.insetGrouped)
             .navigationTitle(String(localized: "Live Data"))
-            .background(Color(.systemGroupedBackground))
+            .navigationDestination(item: Binding(
+                get: { store.selectedSensorGroupID },
+                set: { newValue in
+                    if newValue == nil { store.send(.sensorGroupDetailDismissed) }
+                }
+            )) { id in
+                SensorGroupDetailView(
+                    groupID: id,
+                    sensorGroups: store.sensorGroups
+                )
+            }
         }
         .onAppear { store.send(.onAppear) }
         .onDisappear { store.send(.onDisappear) }
@@ -33,23 +71,47 @@ struct DashboardView: View {
     }
 }
 
-// MARK: - Exposure Score Card
+// MARK: - Sensor Group Detail
+
+private struct SensorGroupDetailView: View {
+    let groupID: String
+    let sensorGroups: IdentifiedArrayOf<SensorGroup>
+
+    private var group: SensorGroup? { sensorGroups[id: groupID] }
+
+    var body: some View {
+        Group {
+            if let group {
+                ScrollView {
+                    SensorGroupReadingsContent(group: group)
+                        .padding()
+                }
+                .background(Color(.systemGroupedBackground))
+                .navigationTitle(group.name)
+            } else {
+                ContentUnavailableView(
+                    String(localized: "Sensor Unavailable"),
+                    systemImage: "sensor.tag.radiowaves.forward.slash",
+                    description: Text(String(localized: "This sensor group is no longer available."))
+                )
+            }
+        }
+    }
+}
+
+// MARK: - Permission Overview Card
 
 private struct ExposureScoreCard: View {
     let score: ExposureScore
     let permissions: [PermissionItem]
 
-    private var scoreColor: Color {
-        switch score.total {
-        case 0..<30: .green
-        case 30..<60: .yellow
-        default: .red
-        }
+    private var ringColor: Color {
+        Color.accentColor
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text(String(localized: "Exposure Score"))
+            Text(String(localized: "Permission overview"))
                 .font(.headline)
                 .accessibilityAddTraits(.isHeader)
 
@@ -60,22 +122,22 @@ private struct ExposureScoreCard: View {
                         .stroke(Color(.systemGray5), lineWidth: 10)
                     Circle()
                         .trim(from: 0, to: CGFloat(score.total) / 100)
-                        .stroke(scoreColor, style: StrokeStyle(lineWidth: 10, lineCap: .round))
+                        .stroke(ringColor, style: StrokeStyle(lineWidth: 10, lineCap: .round))
                         .rotationEffect(.degrees(-90))
                         .animation(.easeInOut(duration: 0.6), value: score.total)
                     VStack(spacing: 2) {
                         Text("\(score.total)")
                             .font(.system(size: 30, weight: .bold, design: .rounded))
-                            .foregroundStyle(scoreColor)
+                            .foregroundStyle(ringColor)
                             .monospacedDigit()
-                        Text(String(localized: "/ 100"))
+                        Text(String(localized: "of 100"))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
                 }
                 .frame(width: 90, height: 90)
-                .accessibilityLabel(String(localized: "Exposure score: \(score.total) out of 100"))
-                .accessibilityValue(scoreColor == .green ? String(localized: "Low") : scoreColor == .yellow ? String(localized: "Medium") : String(localized: "High"))
+                .accessibilityLabel(String(localized: "Permission overview: relative weight \(score.total) out of 100"))
+                .accessibilityValue(String(localized: "\(score.total) of 100"))
 
                 VStack(alignment: .leading, spacing: 6) {
                     subScorePill(label: String(localized: "Location"), value: score.locationScore, max: 40, color: .blue)
@@ -89,31 +151,31 @@ private struct ExposureScoreCard: View {
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
 
-            if !score.topThreeToRevoke.isEmpty {
+            if !score.topContributors.isEmpty {
                 Divider()
 
-                Text(String(localized: "Reduce Your Score"))
+                Text(String(localized: "Highest-weight permissions"))
                     .font(.subheadline.bold())
                     .accessibilityAddTraits(.isHeader)
 
-                let totalSavings = score.topThreeToRevoke.reduce(0) { $0 + $1.1 }
+                let totalWeight = score.topContributors.reduce(0) { $0 + $1.1 }
 
-                ForEach(score.topThreeToRevoke, id: \.0) { type_, points in
+                ForEach(score.topContributors, id: \.0) { type_, weight in
                     if let item = permissions.first(where: { $0.id == type_ }) {
                         HStack {
                             Label(item.name, systemImage: item.sfSymbol)
                                 .font(.footnote)
                             Spacer()
-                            Text(String(localized: "−\(points) pts"))
-                                .font(.caption.bold())
-                                .foregroundStyle(.red)
+                            Text(String(localized: "weight \(weight)"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
                         }
                         .accessibilityElement(children: .combine)
-                        .accessibilityLabel(String(localized: "\(item.name): \(points) points"))
+                        .accessibilityLabel(String(localized: "\(item.name): weight \(weight)"))
                     }
                 }
 
-                Text(String(localized: "Revoking these in Settings could reduce your score by \(totalSavings) points"))
+                Text(String(localized: "These permissions contribute the most to this overview (combined weight \(totalWeight)). You can change them anytime in Settings."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -147,24 +209,13 @@ private struct ExposureScoreCard: View {
 
 }
 
-// MARK: - Sensor Group Card
+// MARK: - Sensor Group Readings (card body)
 
-private struct SensorGroupCard: View {
+private struct SensorGroupReadingsContent: View {
     let group: SensorGroup
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Label(group.name, systemImage: group.sfSymbol)
-                    .font(.headline)
-                    .accessibilityAddTraits(.isHeader)
-                Spacer()
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-
-            Divider()
-
             let lockedReadings = group.readings.filter { $0.requiresPermission && $0.permissionStatus != .granted }
             let visibleReadings = group.readings.filter { !$0.requiresPermission || $0.permissionStatus == .granted }
 

@@ -44,6 +44,8 @@ struct PermissionsFeature {
                 if let idx = state.permissions.firstIndex(where: { $0.id == type_ }) {
                     state.permissions[idx].status = status
                 }
+                guard let updatedItem = state.permissions[id: type_] else { return .none }
+                syncPermissionDetailItemInPath(&state.path, for: type_, with: updatedItem)
                 return .none
 
             case .openSettingsTapped:
@@ -99,3 +101,17 @@ enum PermissionsPath {
 }
 
 extension PermissionsPath.State: Equatable {}
+
+private func syncPermissionDetailItemInPath(
+    _ path: inout StackState<PermissionsPath.State>,
+    for type: PermissionType,
+    with updatedItem: PermissionItem
+) {
+    for id in path.ids {
+        guard let element = path[id: id] else { continue }
+        guard case .permissionDetail(var detail) = element else { continue }
+        guard detail.item.id == type else { continue }
+        detail.item = updatedItem
+        path[id: id] = .permissionDetail(detail)
+    }
+}

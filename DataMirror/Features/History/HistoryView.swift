@@ -34,7 +34,7 @@ struct HistoryView: View {
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
                 .accessibilityHidden(true)
-            Text(String(localized: "No history yet. Your score will be recorded as you use the app."))
+            Text(String(localized: "No history yet. Snapshots of this overview are saved as you use the app."))
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -62,41 +62,28 @@ struct HistoryView: View {
     @ViewBuilder
     private var scoreChart: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(String(localized: "Score Over Time"))
+            Text(String(localized: "Permission weight over time"))
                 .font(.headline)
                 .accessibilityAddTraits(.isHeader)
 
             Chart {
-                // Threshold bands
                 RectangleMark(
                     xStart: nil, xEnd: nil,
-                    yStart: .value("", 0), yEnd: .value("", 30)
+                    yStart: .value("", 0), yEnd: .value("", 100)
                 )
-                .foregroundStyle(.green.opacity(0.1))
-
-                RectangleMark(
-                    xStart: nil, xEnd: nil,
-                    yStart: .value("", 30), yEnd: .value("", 60)
-                )
-                .foregroundStyle(.yellow.opacity(0.1))
-
-                RectangleMark(
-                    xStart: nil, xEnd: nil,
-                    yStart: .value("", 60), yEnd: .value("", 100)
-                )
-                .foregroundStyle(.red.opacity(0.1))
+                .foregroundStyle(Color(.systemGray5).opacity(0.35))
 
                 ForEach(store.snapshots) { snapshot in
                     LineMark(
                         x: .value("Date", snapshot.date),
-                        y: .value("Score", snapshot.total)
+                        y: .value("Weight", snapshot.total)
                     )
                     .foregroundStyle(Color.accentColor)
                     .interpolationMethod(.catmullRom)
 
                     PointMark(
                         x: .value("Date", snapshot.date),
-                        y: .value("Score", snapshot.total)
+                        y: .value("Weight", snapshot.total)
                     )
                     .foregroundStyle(Color.accentColor)
                     .symbolSize(store.snapshots.count == 1 ? 40 : 15)
@@ -113,7 +100,7 @@ struct HistoryView: View {
                 }
             }
             .frame(height: 200)
-            .accessibilityLabel(String(localized: "Exposure score chart showing \(store.snapshots.count) data points over time"))
+            .accessibilityLabel(String(localized: "Permission overview chart showing \(store.snapshots.count) data points over time"))
         }
     }
 
@@ -137,7 +124,7 @@ struct HistoryView: View {
                     Spacer()
                     Text("\(snapshot.total)")
                         .font(.title3.bold().monospacedDigit())
-                        .foregroundStyle(scoreColor(snapshot.total))
+                        .foregroundStyle(Color.accentColor)
 
                     if index < reversed.count - 1 {
                         let previous = reversed[index + 1]
@@ -147,7 +134,7 @@ struct HistoryView: View {
                 }
                 .padding(.vertical, 4)
                 .accessibilityElement(children: .combine)
-                .accessibilityLabel(String(localized: "Score \(snapshot.total) on \(snapshot.date.formatted(date: .abbreviated, time: .shortened))"))
+                .accessibilityLabel(String(localized: "Relative weight \(snapshot.total) on \(snapshot.date.formatted(date: .abbreviated, time: .shortened))"))
 
                 if index < reversed.count - 1 {
                     Divider()
@@ -161,26 +148,18 @@ struct HistoryView: View {
         if delta > 0 {
             Text("▲ \(delta)")
                 .font(.caption.bold())
-                .foregroundStyle(.red)
+                .foregroundStyle(.secondary)
                 .frame(width: 50, alignment: .trailing)
         } else if delta < 0 {
             Text("▼ \(abs(delta))")
                 .font(.caption.bold())
-                .foregroundStyle(.green)
+                .foregroundStyle(.secondary)
                 .frame(width: 50, alignment: .trailing)
         } else {
             Text("—")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(width: 50, alignment: .trailing)
-        }
-    }
-
-    private func scoreColor(_ score: Int) -> Color {
-        switch score {
-        case 0..<30: .green
-        case 30..<60: .yellow
-        default: .red
         }
     }
 }

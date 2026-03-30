@@ -59,16 +59,6 @@ struct ScoreEntry: TimelineEntry {
     let deviceScore: Int
 }
 
-// MARK: - Score Color
-
-private func scoreColor(_ score: Int) -> Color {
-    switch score {
-    case 0..<30: .green
-    case 30..<60: .yellow
-    default: .red
-    }
-}
-
 // MARK: - Small Widget
 
 struct SmallWidgetView: View {
@@ -78,9 +68,9 @@ struct SmallWidgetView: View {
         VStack(spacing: 4) {
             Text("\(entry.score)")
                 .font(.system(size: 48, weight: .bold, design: .rounded))
-                .foregroundStyle(scoreColor(entry.score))
+                .foregroundStyle(Color.accentColor)
                 .monospacedDigit()
-            Text("Exposure Score")
+            Text("Permission overview")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
@@ -100,9 +90,9 @@ struct MediumWidgetView: View {
             VStack(spacing: 4) {
                 Text("\(entry.score)")
                     .font(.system(size: 42, weight: .bold, design: .rounded))
-                    .foregroundStyle(scoreColor(entry.score))
+                    .foregroundStyle(Color.accentColor)
                     .monospacedDigit()
-                Text("Exposure Score")
+                Text("Permission overview")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -181,9 +171,9 @@ struct AccessoryRectangularView: View {
 
     private var summaryString: String {
         switch entry.score {
-        case 0..<30: "Low exposure"
-        case 30..<60: "Moderate"
-        default: "High exposure"
+        case 0..<30: String(localized: "Fewer permissions active")
+        case 30..<60: String(localized: "Moderate access")
+        default: String(localized: "More permissions active")
         }
     }
 }
@@ -217,8 +207,8 @@ struct DataMirrorWidget: Widget {
         StaticConfiguration(kind: kind, provider: DataMirrorProvider()) { entry in
             DataMirrorWidgetEntryView(entry: entry)
         }
-        .configurationDisplayName("Exposure Score")
-        .description("Shows your current data exposure score.")
+        .configurationDisplayName("Permission overview")
+        .description("Shows the current relative weight of granted permissions.")
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryCircular, .accessoryRectangular])
     }
 }

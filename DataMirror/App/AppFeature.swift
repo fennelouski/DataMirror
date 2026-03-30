@@ -39,7 +39,7 @@ struct AppFeature {
             case .dashboard: String(localized: "Live sensor readings")
             case .permissions: String(localized: "Manage app access")
             case .inferred: String(localized: "What can be deduced about you")
-            case .history: String(localized: "Exposure score over time")
+            case .history: String(localized: "Permission overview over time")
             case .about: String(localized: "About DataMirror")
             }
         }
