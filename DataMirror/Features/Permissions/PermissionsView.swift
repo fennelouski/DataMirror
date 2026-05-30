@@ -3,6 +3,7 @@ import ComposableArchitecture
 
 struct PermissionsView: View {
     @Bindable var store: StoreOf<PermissionsFeature>
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         NavigationStack(path: $store.scope(state: \.path, action: \.path)) {
@@ -25,6 +26,9 @@ struct PermissionsView: View {
                 }
             }
             .onAppear { store.send(.onAppear) }
+            .onChange(of: scenePhase) { _, newPhase in
+                store.send(.scenePhaseChanged(newPhase))
+            }
         } destination: { pathStore in
             switch pathStore.case {
             case let .permissionDetail(detailStore):

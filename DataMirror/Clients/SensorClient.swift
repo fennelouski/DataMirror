@@ -78,6 +78,9 @@ private final class LiveSensorClient: @unchecked Sendable {
     private let motionManager = CMMotionManager()
     private let locationManager = CLLocationManager()
     private let locationDelegate = LocationDelegate()
+    /// Whether `startUpdatingLocation()` has been issued. Mutated only from the
+    /// @MainActor sensor build/teardown path, so plain storage is safe here.
+    private var isUpdatingLocation = false
     private let networkMonitor = NWPathMonitor()
     private let networkQueue = DispatchQueue(
         label: "com.datamirror.network"
@@ -104,16 +107,37 @@ private final class LiveSensorClient: @unchecked Sendable {
     
     private init() {
         networkMonitor.pathUpdateHandler = { [weak self] path in
-            self?._currentPath
-                .withLock {
-                    $0 = path
-                }
+            guard let self else { return }
+            let previous = self._currentPath.withLock { existing -> NWPath? in
+                let old = existing
+                existing = path
+                return old
+            }
+            // When the network identity changes (interface set, type, or
+            // reachability), the cached public IP / geolocation is stale — clear
+            // it and re-fetch so the Network group reflects the new network
+            // (e.g. after a VPN toggle or Wi-Fi↔cellular switch).
+            if Self.networkSignature(previous) != Self.networkSignature(path) {
+                self._ipGeoCache.withLock { $0 = nil }
+                Task { await self.fetchIPGeo() }
+            }
         }
         networkMonitor
             .start(
                 queue: networkQueue
             )
         locationManager.delegate = locationDelegate
+    }
+
+    /// A stable fingerprint of the current network so we can tell when the device
+    /// has actually moved to a different network (vs. routine path callbacks).
+    private static func networkSignature(_ path: NWPath?) -> String {
+        guard let path else { return "none" }
+        let interfaces = path.availableInterfaces
+            .map { "\($0.type):\($0.name)" }
+            .sorted()
+            .joined(separator: ",")
+        return "\(path.status)|expensive:\(path.isExpensive)|\(interfaces)"
     }
     
     func makeClient() -> SensorClient {
@@ -178,6 +202,10 @@ private final class LiveSensorClient: @unchecked Sendable {
         motionManager
             .stopGyroUpdates()
 #endif
+        if isUpdatingLocation {
+            locationManager.stopUpdatingLocation()
+            isUpdatingLocation = false
+        }
         continuation
             .finish()
     }
@@ -1189,6 +1217,15 @@ private final class LiveSensorClient: @unchecked Sendable {
             )
         }
         
+        // Permission is granted — begin live GPS updates so the readings below
+        // stop showing "Waiting…" and refresh as the device moves. Started lazily
+        // here (rather than at init) because authorization may be granted mid-session.
+        if !isUpdatingLocation {
+            locationManager.desiredAccuracy = kCLLocationAccuracyBest
+            locationManager.startUpdatingLocation()
+            isUpdatingLocation = true
+        }
+
         let location = locationDelegate.lastLocation
         let coordinate = location.map { loc in
             String(
