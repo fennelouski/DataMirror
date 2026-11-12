@@ -3,6 +3,8 @@ import ComposableArchitecture
 
 @main
 struct DataMirrorApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     // Created once, with `hasSeenPrimer` read before the first frame so a
     // returning user never sees the primer flash and a new user sees it first.
     static let store = Store(

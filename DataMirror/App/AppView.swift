@@ -90,9 +90,9 @@ struct AppView: View {
     }
 }
 
-// MARK: - Section Grid Cell (iPad)
+// MARK: - Section Grid Cell (iPad, external display)
 
-private struct SectionCell: View {
+struct SectionCell: View {
     let section: AppFeature.Section
     let isSelected: Bool
 

@@ -4,7 +4,23 @@ import ComposableArchitecture
 struct AboutView: View {
     let store: StoreOf<AboutFeature>
 
-    private let principles: [(String, String)] = [
+    static let summary = String(localized: "DataMirror shows you exactly what sensor data your iPhone exposes and what your current permissions unlock — so you can make informed decisions, not fearful ones.")
+
+    static let cannotDo = [
+        String(localized: "Block apps from collecting data they're permitted to access."),
+        String(localized: "Show you data other apps have already collected."),
+        String(localized: "Guarantee that revoking a permission stops prior data use."),
+    ]
+
+    static let alwaysReadable = [
+        String(localized: "IP address (visible to every server you connect to)"),
+        String(localized: "Device model and OS version"),
+        String(localized: "Screen resolution and display scale"),
+        String(localized: "Timezone and locale"),
+        String(localized: "Battery level and charging state"),
+    ]
+
+    static let principles: [(String, String)] = [
         ("lock.shield.fill", String(localized: "All data stays on your device. Nothing is sent anywhere.")),
         ("eye.slash.fill", String(localized: "No analytics, no tracking, no advertising of any kind.")),
         ("hand.raised.fill", String(localized: "Permissions are never requested automatically — only when you tap.")),
@@ -29,7 +45,7 @@ struct AboutView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        Text(String(localized: "DataMirror shows you exactly what sensor data your iPhone exposes and what your current permissions unlock — so you can make informed decisions, not fearful ones."))
+                        Text(Self.summary)
                             .font(.body)
                             .foregroundStyle(.secondary)
                     }
@@ -37,19 +53,17 @@ struct AboutView: View {
                 }
 
                 Section(String(localized: "Our Principles")) {
-                    ForEach(principles, id: \.0) { symbol, text in
+                    ForEach(Self.principles, id: \.0) { symbol, text in
                         Label(text, systemImage: symbol)
                             .font(.subheadline)
                     }
                 }
 
                 Section(String(localized: "What We Cannot Do")) {
-                    Label(String(localized: "Block apps from collecting data they're permitted to access."), systemImage: "xmark.circle")
-                        .font(.subheadline)
-                    Label(String(localized: "Show you data other apps have already collected."), systemImage: "xmark.circle")
-                        .font(.subheadline)
-                    Label(String(localized: "Guarantee that revoking a permission stops prior data use."), systemImage: "xmark.circle")
-                        .font(.subheadline)
+                    ForEach(Self.cannotDo, id: \.self) { item in
+                        Label(item, systemImage: "xmark.circle")
+                            .font(.subheadline)
+                    }
                 }
 
                 Section(String(localized: "Sensor Data That Can't Be Blocked")) {
@@ -57,14 +71,7 @@ struct AboutView: View {
                         Text(String(localized: "The following are readable by any app with no permission required:"))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
-                        let alwaysOn = [
-                            String(localized: "IP address (visible to every server you connect to)"),
-                            String(localized: "Device model and OS version"),
-                            String(localized: "Screen resolution and display scale"),
-                            String(localized: "Timezone and locale"),
-                            String(localized: "Battery level and charging state"),
-                        ]
-                        ForEach(alwaysOn, id: \.self) { item in
+                        ForEach(Self.alwaysReadable, id: \.self) { item in
                             Label(item, systemImage: "circle.fill")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)

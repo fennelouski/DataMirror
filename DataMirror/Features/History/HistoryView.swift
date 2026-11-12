@@ -66,39 +66,7 @@ struct HistoryView: View {
                 .font(.headline)
                 .accessibilityAddTraits(.isHeader)
 
-            Chart {
-                RectangleMark(
-                    xStart: nil, xEnd: nil,
-                    yStart: .value("", 0), yEnd: .value("", 100)
-                )
-                .foregroundStyle(Color(.systemGray5).opacity(0.35))
-
-                ForEach(store.snapshots) { snapshot in
-                    LineMark(
-                        x: .value("Date", snapshot.date),
-                        y: .value("Weight", snapshot.total)
-                    )
-                    .foregroundStyle(Color.accentColor)
-                    .interpolationMethod(.catmullRom)
-
-                    PointMark(
-                        x: .value("Date", snapshot.date),
-                        y: .value("Weight", snapshot.total)
-                    )
-                    .foregroundStyle(Color.accentColor)
-                    .symbolSize(store.snapshots.count == 1 ? 40 : 15)
-                }
-            }
-            .chartYScale(domain: 0...100)
-            .chartYAxis {
-                AxisMarks(values: [0, 50, 100])
-            }
-            .chartXAxis {
-                AxisMarks(values: .stride(by: .day)) { _ in
-                    AxisGridLine()
-                    AxisValueLabel(format: .dateTime.weekday(.abbreviated))
-                }
-            }
+            ScoreHistoryChart(snapshots: store.snapshots)
             .frame(height: 200)
             .accessibilityLabel(String(localized: "Permission overview chart showing \(store.snapshots.count) data points over time"))
         }
@@ -160,6 +128,47 @@ struct HistoryView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .frame(width: 50, alignment: .trailing)
+        }
+    }
+}
+
+/// The permission-weight line chart, sized by its container.
+struct ScoreHistoryChart: View {
+    let snapshots: [ScoreSnapshot]
+
+    var body: some View {
+        Chart {
+            RectangleMark(
+                xStart: nil, xEnd: nil,
+                yStart: .value("", 0), yEnd: .value("", 100)
+            )
+            .foregroundStyle(Color(.systemGray5).opacity(0.35))
+
+            ForEach(snapshots) { snapshot in
+                LineMark(
+                    x: .value("Date", snapshot.date),
+                    y: .value("Weight", snapshot.total)
+                )
+                .foregroundStyle(Color.accentColor)
+                .interpolationMethod(.catmullRom)
+
+                PointMark(
+                    x: .value("Date", snapshot.date),
+                    y: .value("Weight", snapshot.total)
+                )
+                .foregroundStyle(Color.accentColor)
+                .symbolSize(snapshots.count == 1 ? 40 : 15)
+            }
+        }
+        .chartYScale(domain: 0...100)
+        .chartYAxis {
+            AxisMarks(values: [0, 50, 100])
+        }
+        .chartXAxis {
+            AxisMarks(values: .stride(by: .day)) { _ in
+                AxisGridLine()
+                AxisValueLabel(format: .dateTime.weekday(.abbreviated))
+            }
         }
     }
 }

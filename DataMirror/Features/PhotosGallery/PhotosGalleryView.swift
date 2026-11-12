@@ -67,7 +67,7 @@ struct PhotosGalleryView: View {
 
 // MARK: - Photo Thumbnail
 
-private struct PhotoThumbnailView: View {
+struct PhotoThumbnailView: View {
     let asset: PhotoAsset
     @State private var image: UIImage?
 

@@ -101,7 +101,7 @@ private struct SensorGroupDetailView: View {
 
 // MARK: - Permission Overview Card
 
-private struct ExposureScoreCard: View {
+struct ExposureScoreCard: View {
     let score: ExposureScore
     let permissions: [PermissionItem]
 

@@ -74,7 +74,7 @@ private struct PermissionRow: View {
             HStack(spacing: 12) {
                 Image(systemName: item.sfSymbol)
                     .font(.title3)
-                    .foregroundStyle(statusColor)
+                    .foregroundStyle(item.status.color)
                     .frame(width: 32)
                     .accessibilityHidden(true)
 
@@ -83,9 +83,9 @@ private struct PermissionRow: View {
                         .font(.body)
                         .foregroundStyle(.primary)
 
-                    Text(statusLabel)
+                    Text(item.status.displayName)
                         .font(.caption)
-                        .foregroundStyle(statusColor)
+                        .foregroundStyle(item.status.color)
                 }
 
                 Spacer()
@@ -99,12 +99,14 @@ private struct PermissionRow: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(item.name)
-        .accessibilityValue(statusLabel)
+        .accessibilityValue(item.status.displayName)
         .accessibilityHint(String(localized: "Double tap to view permission details"))
     }
+}
 
-    private var statusLabel: String {
-        switch item.status {
+extension PermissionStatus {
+    var displayName: String {
+        switch self {
         case .granted: String(localized: "Granted")
         case .denied: String(localized: "Denied")
         case .notDetermined: String(localized: "Not requested")
@@ -114,8 +116,8 @@ private struct PermissionRow: View {
         }
     }
 
-    private var statusColor: Color {
-        switch item.status {
+    var color: Color {
+        switch self {
         case .granted: .green
         case .denied: .red
         case .notDetermined: .orange

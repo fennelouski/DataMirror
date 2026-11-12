@@ -15,6 +15,10 @@ DataMirrorApp
         ├── AboutFeature
         └── PrimerFeature (first-launch onboarding)
 
+ExternalDisplayView (AirPlay / HDMI second screen)
+  └── Read-only view of AppFeature state, re-flowed into columns for the
+      display's aspect ratio. Shares the phone's store; sends no actions.
+
 Clients (Dependency Layer):
   ├── SensorClient       — CoreMotion, CoreLocation, Network, UIDevice
   ├── PermissionClient    — CLLocationManager, AVCaptureDevice, CNContactStore, etc.
