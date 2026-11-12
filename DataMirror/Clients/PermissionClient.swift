@@ -24,7 +24,6 @@ private nonisolated let logger = Logger(subsystem: "com.datamirror", category: "
 struct PermissionClient: Sendable {
     var loadAll: @Sendable () async -> [PermissionItem]
     var request: @Sendable (PermissionType) async -> PermissionStatus
-    var currentStatus: @Sendable (PermissionType) -> PermissionStatus
     var fetchContacts: @Sendable () async throws -> [ContactRecord]
     var fetchPhotoAssets: @Sendable () async -> [PhotoAsset]
 }
@@ -68,9 +67,6 @@ extension PermissionClient: DependencyKey {
             request: { type_ in
                 await LivePermissionClient.request(type_)
             },
-            currentStatus: { type_ in
-                LivePermissionClient.currentStatusSync(for: type_)
-            },
             fetchContacts: {
                 try await LivePermissionClient.fetchContacts()
             },
@@ -101,7 +97,6 @@ extension PermissionClient: DependencyKey {
                 }
             },
             request: { _ in .granted },
-            currentStatus: { _ in .notDetermined },
             fetchContacts: { [] },
             fetchPhotoAssets: { [] }
         )
@@ -133,16 +128,10 @@ private enum LivePermissionClient {
         }
     }
 
+    /// The single source of truth for a permission's status. Every case must
+    /// report whether the system prompt can still be shown: `.notDetermined`
+    /// is the only status that offers an in-app request.
     static func currentStatus(for type_: PermissionType) async -> PermissionStatus {
-        switch type_ {
-        case .notifications:
-            return await notificationsAuthorizationStatus()
-        default:
-            return currentStatusSync(for: type_)
-        }
-    }
-
-    nonisolated static func currentStatusSync(for type_: PermissionType) -> PermissionStatus {
         switch type_ {
         case .locationAlways:
             return locationStatus(requiresAlways: true)
@@ -173,11 +162,11 @@ private enum LivePermissionClient {
         case .motionFitness:
             return motionFitnessStatus()
         case .healthRead:
-            return healthReadAuthorizationStatus()
+            return await healthReadStatus()
         case .healthWrite:
             return healthWriteAuthorizationStatus()
         case .notifications:
-            return .notDetermined
+            return await notificationsAuthorizationStatus()
         case .tracking:
             return attStatus()
         case .faceID:
@@ -189,15 +178,15 @@ private enum LivePermissionClient {
         case .mediaLibrary:
             return mediaLibraryStatus()
         case .nearbyInteractions:
-            return .notDetermined
+            return .notAvailable
         case .nfc:
             return .notAvailable
         case .notes:
             return .notAvailable
         case .backgroundAppRefresh:
-            return backgroundRefreshStatus()
+            return await backgroundRefreshStatus()
         case .homeKit:
-            return .notDetermined
+            return .notAvailable
         case .classKit:
             return .notAvailable
         case .focusStatus:
@@ -376,35 +365,30 @@ private enum LivePermissionClient {
         #endif
     }
 
-    private nonisolated static func aggregateHealthAuthorizationStatus(for types: [HKObjectType]) -> PermissionStatus {
+    /// HealthKit never reveals whether *read* access was allowed —
+    /// `authorizationStatus(for:)` reports write access only, so it stays
+    /// `.notDetermined` forever for read-only types. All iOS will say is
+    /// whether the prompt is still pending.
+    private static func healthReadStatus() async -> PermissionStatus {
         guard HKHealthStore.isHealthDataAvailable() else { return .notAvailable }
-        guard !types.isEmpty else { return .notAvailable }
-        let store = HKHealthStore()
-        var hasAuthorized = false
-        var hasNotDetermined = false
-        for type in types {
-            switch store.authorizationStatus(for: type) {
-            case .notDetermined:
-                hasNotDetermined = true
-            case .sharingAuthorized:
-                hasAuthorized = true
-            case .sharingDenied:
-                break
-            @unknown default:
-                break
-            }
+        let requestStatus = try? await HKHealthStore().statusForAuthorizationRequest(
+            toShare: [],
+            read: HealthKitDemoTypes.readTypes()
+        )
+        switch requestStatus {
+        case .shouldRequest: return .notDetermined
+        case .unnecessary: return .requested
+        default: return .notAvailable
         }
-        if hasAuthorized { return .granted }
-        if hasNotDetermined { return .notDetermined }
-        return .denied
-    }
-
-    private nonisolated static func healthReadAuthorizationStatus() -> PermissionStatus {
-        aggregateHealthAuthorizationStatus(for: Array(HealthKitDemoTypes.readTypes()))
     }
 
     private nonisolated static func healthWriteAuthorizationStatus() -> PermissionStatus {
-        aggregateHealthAuthorizationStatus(for: Array(HealthKitDemoTypes.writeSampleTypes().map { $0 as HKObjectType }))
+        guard HKHealthStore.isHealthDataAvailable() else { return .notAvailable }
+        let store = HKHealthStore()
+        let statuses = HealthKitDemoTypes.writeSampleTypes().map { store.authorizationStatus(for: $0) }
+        if statuses.contains(.sharingAuthorized) { return .granted }
+        if statuses.contains(.notDetermined) { return .notDetermined }
+        return .denied
     }
 
     private nonisolated static func attStatus() -> PermissionStatus {
@@ -417,14 +401,20 @@ private enum LivePermissionClient {
         }
     }
 
+    /// iOS has no "has the Face ID prompt been answered" API, so we remember
+    /// that we asked. A denial is visible: on Face ID hardware,
+    /// `biometryNotAvailable` means Face ID is switched off for this app.
+    private nonisolated static let faceIDRequestedKey = "hasRequestedFaceID"
+
     private nonisolated static func faceIDStatus() -> PermissionStatus {
         let context = LAContext()
         var error: NSError?
-        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
-            return .notAvailable
-        }
+        let canEvaluate = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error)
         guard context.biometryType == .faceID else { return .notAvailable }
-        return .notDetermined
+        if canEvaluate {
+            return UserDefaults.standard.bool(forKey: faceIDRequestedKey) ? .granted : .notDetermined
+        }
+        return error?.code == LAError.Code.biometryNotAvailable.rawValue ? .denied : .notAvailable
     }
 
     private nonisolated static func speechStatus() -> PermissionStatus {
@@ -452,14 +442,7 @@ private enum LivePermissionClient {
         }
     }
 
-    private nonisolated static func backgroundRefreshStatus() -> PermissionStatus {
-        // UIApplication.shared is main-actor-only; access on main actor or use a best-effort sync read.
-        // Since this is called from a nonisolated context, return .notDetermined as a safe default.
-        // The actual value is checked in the async currentStatus() path below.
-        return .notDetermined
-    }
-
-    static func backgroundRefreshStatusAsync() async -> PermissionStatus {
+    private static func backgroundRefreshStatus() async -> PermissionStatus {
         await MainActor.run {
             switch UIApplication.shared.backgroundRefreshStatus {
             case .available: return .granted
@@ -483,15 +466,12 @@ private enum LivePermissionClient {
     private static func requestHealthRead() async -> PermissionStatus {
         guard HKHealthStore.isHealthDataAvailable() else { return .notAvailable }
         let store = HKHealthStore()
-        let read = HealthKitDemoTypes.readTypes()
-        return await withCheckedContinuation { continuation in
-            store.requestAuthorization(toShare: [], read: read) { _, error in
-                if let error {
-                    logger.error("Health read authorization request failed: \(error.localizedDescription)")
-                }
-                continuation.resume(returning: healthReadAuthorizationStatus())
-            }
+        do {
+            try await store.requestAuthorization(toShare: [], read: HealthKitDemoTypes.readTypes())
+        } catch {
+            logger.error("Health read authorization request failed: \(error.localizedDescription)")
         }
+        return await healthReadStatus()
     }
 
     private static func requestHealthWrite() async -> PermissionStatus {
@@ -521,6 +501,8 @@ private enum LivePermissionClient {
             manager.requestWhenInUseAuthorization()
         }
         await delegate.waitForAuthorization()
+        // The system dismisses the prompt if its CLLocationManager is released.
+        withExtendedLifetime(manager) {}
         return locationStatus(requiresAlways: always)
     }
 
@@ -643,15 +625,17 @@ private enum LivePermissionClient {
     private static func requestFaceID() async -> PermissionStatus {
         let context = LAContext()
         do {
-            let success = try await context.evaluatePolicy(
+            _ = try await context.evaluatePolicy(
                 .deviceOwnerAuthenticationWithBiometrics,
                 localizedReason: String(localized: "DataMirror uses Face ID to show you which apps can authenticate with your face.")
             )
-            return success ? .granted : .denied
         } catch {
             logger.error("Face ID request failed: \(error.localizedDescription)")
-            return .denied
+            // Interrupted before the user could answer — the prompt is still pending.
+            if (error as NSError).code == LAError.Code.systemCancel.rawValue { return .notDetermined }
         }
+        UserDefaults.standard.set(true, forKey: faceIDRequestedKey)
+        return faceIDStatus()
     }
 
     private static func requestSpeech() async -> PermissionStatus {
@@ -857,6 +841,9 @@ private final class RequestLocationDelegate: NSObject, CLLocationManagerDelegate
     }
 
     nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        // Core Location also calls this when the manager is created. While the
+        // status is still undetermined the prompt is on screen — keep waiting.
+        guard manager.authorizationStatus != .notDetermined else { return }
         continuation.withLock { cont in
             cont?.resume()
             cont = nil

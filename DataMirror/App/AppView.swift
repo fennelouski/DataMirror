@@ -7,21 +7,24 @@ struct AppView: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .automatic
 
     var body: some View {
-        NavigationSplitView(columnVisibility: $columnVisibility) {
-            sidebarContent
-                .navigationTitle("DataMirror")
-        } detail: {
-            detailContent
+        // The primer replaces the app rather than covering it: no sensor
+        // polling, status checks, or network lookups start until the user has
+        // read what DataMirror does and tapped Get Started.
+        Group {
+            if store.hasSeenPrimer {
+                NavigationSplitView(columnVisibility: $columnVisibility) {
+                    sidebarContent
+                        .navigationTitle("DataMirror")
+                } detail: {
+                    detailContent
+                }
+                .navigationSplitViewStyle(.balanced)
+            } else {
+                PrimerView(store: store.scope(state: \.primer, action: \.primer))
+            }
         }
-        .navigationSplitViewStyle(.balanced)
         .tint(Color.accentColor)
-        .onAppear { store.send(.onAppear) }
-        .fullScreenCover(isPresented: Binding(
-            get: { !store.hasSeenPrimer },
-            set: { _ in }
-        )) {
-            PrimerView(store: store.scope(state: \.primer, action: \.primer))
-        }
+        .animation(.default, value: store.hasSeenPrimer)
     }
 
     // MARK: - Sidebar
@@ -87,9 +90,9 @@ struct AppView: View {
     }
 }
 
-// MARK: - Section Grid Cell (iPad)
+// MARK: - Section Grid Cell (iPad, external display)
 
-private struct SectionCell: View {
+struct SectionCell: View {
     let section: AppFeature.Section
     let isSelected: Bool
 
@@ -124,7 +127,7 @@ private struct SectionCell: View {
 
 #Preview {
     AppView(
-        store: Store(initialState: AppFeature.State()) {
+        store: Store(initialState: AppFeature.State(hasSeenPrimer: true)) {
             AppFeature()
         } withDependencies: {
             $0.sensorClient = .testValue

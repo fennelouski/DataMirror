@@ -4,7 +4,7 @@ import ComposableArchitecture
 struct PrimerView: View {
     let store: StoreOf<PrimerFeature>
 
-    private let features: [(symbol: String, title: String, subtitle: String)] = [
+    static let features: [(symbol: String, title: String, subtitle: String)] = [
         (
             "eye",
             String(localized: "Live Sensor Dashboard"),
@@ -42,7 +42,7 @@ struct PrimerView: View {
             }
 
             VStack(alignment: .leading, spacing: 20) {
-                ForEach(features, id: \.symbol) { feature in
+                ForEach(Self.features, id: \.symbol) { feature in
                     HStack(spacing: 16) {
                         Image(systemName: feature.symbol)
                             .font(.title2)

@@ -18,7 +18,6 @@ struct PermissionsFeature {
         case onAppear
         case scenePhaseChanged(ScenePhase)
         case permissionsLoaded([PermissionItem])
-        case permissionRequestCompleted(PermissionType, PermissionStatus)
         case openSettingsTapped
         case permissionTapped(PermissionType)
         case path(StackActionOf<PermissionsPath>)
@@ -33,6 +32,13 @@ struct PermissionsFeature {
         .run { send in
             let items = await permissionClient.loadAll()
             await send(.permissionsLoaded(items))
+        }
+    }
+
+    private func openSettings() -> Effect<Action> {
+        .run { _ in
+            guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+            await MainActor.run { UIApplication.shared.open(url) }
         }
     }
 
@@ -60,40 +66,30 @@ struct PermissionsFeature {
                 syncPermissionDetailItemsInPath(&state.path, from: state.permissions)
                 return .none
 
-            case let .permissionRequestCompleted(type_, status):
-                if let idx = state.permissions.firstIndex(where: { $0.id == type_ }) {
-                    state.permissions[idx].status = status
-                }
-                syncPermissionDetailItemsInPath(&state.path, from: state.permissions)
-                return .none
-
             case .openSettingsTapped:
-                return .run { _ in
-                    guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-                    await MainActor.run { UIApplication.shared.open(url) }
-                }
+                return openSettings()
 
             case let .permissionTapped(type_):
                 guard let item = state.permissions[id: type_] else { return .none }
                 state.path.append(.permissionDetail(PermissionDetailFeature.State(item: item)))
                 return .none
 
-            case .path(.element(_, action: .permissionDetail(.openSettingsTapped))):
-                return .run { _ in
-                    guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-                    await MainActor.run { UIApplication.shared.open(url) }
-                }
-
+            // Settings opens only once the detail screen's "Open Settings?" alert
+            // is confirmed — never on the tap that presents the alert.
             case .path(.element(_, action: .permissionDetail(.openSettingsAlertConfirmed))):
-                return .run { _ in
-                    guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-                    await MainActor.run { UIApplication.shared.open(url) }
-                }
+                return openSettings()
 
             case let .path(.element(_, action: .permissionDetail(.requestPermissionTapped(type_)))):
+                // iOS shows each prompt once. If this permission has already been
+                // answered (a stale screen), don't ask again — just show the truth.
+                guard state.permissions[id: type_]?.status == .notDetermined else {
+                    return refresh()
+                }
                 return .run { [permissionClient] send in
-                    let status = await permissionClient.request(type_)
-                    await send(.permissionRequestCompleted(type_, status))
+                    _ = await permissionClient.request(type_)
+                    // One prompt can change several rows (location, photos), so
+                    // re-read everything instead of trusting a single result.
+                    await send(.permissionsLoaded(await permissionClient.loadAll()))
                 }
 
             case .path(.element(_, action: .permissionDetail(.navigateToContacts))):
