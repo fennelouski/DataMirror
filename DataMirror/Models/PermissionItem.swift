@@ -112,6 +112,9 @@ enum PermissionStatus: Equatable, Sendable {
     case granted
     case denied
     case notDetermined
+    /// The prompt has been answered, but iOS does not disclose the answer
+    /// (HealthKit read access). Never show a request for this again.
+    case requested
     case restricted
     case notAvailable
 }

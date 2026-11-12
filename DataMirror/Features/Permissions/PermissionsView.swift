@@ -108,6 +108,7 @@ private struct PermissionRow: View {
         case .granted: String(localized: "Granted")
         case .denied: String(localized: "Denied")
         case .notDetermined: String(localized: "Not requested")
+        case .requested: String(localized: "Requested")
         case .restricted: String(localized: "Restricted")
         case .notAvailable: String(localized: "Not available")
         }
@@ -118,6 +119,7 @@ private struct PermissionRow: View {
         case .granted: .green
         case .denied: .red
         case .notDetermined: .orange
+        case .requested: .blue
         case .restricted: .purple
         case .notAvailable: .gray
         }

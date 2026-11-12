@@ -63,10 +63,8 @@ struct AppFeature {
         case history(HistoryFeature.Action)
         case inferred(InferredFeature.Action)
         case primer(PrimerFeature.Action)
-        case onAppear
     }
 
-    @Dependency(\.userDefaults) var userDefaults
     @Dependency(\.sharedDefaults) var sharedDefaults
 
     var body: some Reducer<State, Action> {
@@ -92,11 +90,6 @@ struct AppFeature {
             switch action {
             case let .sectionSelected(section):
                 state.selectedSection = section
-                return .none
-
-            case .onAppear:
-                let boolForKey = userDefaults.boolForKey
-                state.hasSeenPrimer = boolForKey("hasSeenPrimer")
                 return .none
 
             case .primer(.getStartedTapped):

@@ -70,11 +70,11 @@ private extension PermissionType {
 
     private nonisolated static var deviceSupportsFaceIDPermissionRow: Bool {
         let evaluate: @Sendable () -> Bool = {
+            // `biometryType` is only populated by this call. Its result is ignored
+            // on purpose: it is false when Face ID is denied for this app, and a
+            // denied permission must stay listed.
             let context = LAContext()
-            var error: NSError?
-            guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &error) else {
-                return false
-            }
+            _ = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
             return context.biometryType == .faceID
         }
         if Thread.isMainThread {

@@ -78,6 +78,7 @@ struct PermissionDetailView: View {
         case .granted: (String(localized: "Granted"), .green)
         case .denied: (String(localized: "Denied"), .red)
         case .notDetermined: (String(localized: "Not Requested"), .orange)
+        case .requested: (String(localized: "Requested"), .blue)
         case .restricted: (String(localized: "Restricted"), .purple)
         case .notAvailable: (String(localized: "Not Available"), .gray)
         }
@@ -178,7 +179,7 @@ struct PermissionDetailView: View {
                 }
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    if !level.isCurrentSelection {
+                    if !level.isCurrentSelection && canChangeInSettings {
                         store.send(.openSettingsTapped)
                     }
                 }
@@ -187,7 +188,9 @@ struct PermissionDetailView: View {
                 .accessibilityHint(
                     level.isCurrentSelection
                         ? String(localized: "Currently selected")
-                        : String(localized: "Double tap to open Settings and change to this level")
+                        : canChangeInSettings
+                            ? String(localized: "Double tap to open Settings and change to this level")
+                            : ""
                 )
             }
         } header: {
@@ -272,7 +275,7 @@ struct PermissionDetailView: View {
                 .accessibilityLabel(String(localized: "Request \(store.item.name) permission"))
                 .accessibilityHint(String(localized: "Presents the iOS permission prompt"))
 
-            case .denied where store.item.isUserPromptable:
+            case .denied:
                 Button {
                     store.send(.openSettingsTapped)
                 } label: {
@@ -296,10 +299,35 @@ struct PermissionDetailView: View {
             default:
                 EmptyView()
             }
+        } footer: {
+            if let actionFootnote {
+                Text(actionFootnote)
+            }
+        }
+    }
+
+    /// Explains the next step *before* the user takes it: what the one-time
+    /// prompt means, or why there is no prompt left to show.
+    private var actionFootnote: String? {
+        switch store.item.status {
+        case .notDetermined where store.item.isUserPromptable:
+            String(localized: "iOS shows this prompt only once. Whatever you choose, you can change it later in Settings.")
+        case .denied where store.item.isUserPromptable:
+            String(localized: "You've already answered this prompt, and iOS won't show it again. To change your answer, use Settings.")
+        case .requested:
+            String(localized: "You've answered this prompt. iOS never tells an app whether you allowed it to read Health data, so a denial can't reveal anything about you. To change your answer, open the Health app, tap your profile picture, then Apps.")
+        default:
+            nil
         }
     }
 
     // MARK: - Helpers
+
+    /// iOS only lists a permission in Settings after its prompt has been answered,
+    /// so sending the user there earlier leads to a page with nothing to change.
+    private var canChangeInSettings: Bool {
+        store.item.status == .granted || store.item.status == .denied
+    }
 
     private func tierColor(_ tier: SensitivityTier) -> Color {
         switch tier {

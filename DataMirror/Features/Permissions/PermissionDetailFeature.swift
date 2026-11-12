@@ -7,7 +7,6 @@ struct PermissionDetailFeature {
         var item: PermissionItem
         @Presents var grantLevelSheet: GrantLevelInfoFeature.State?
         var showOpenSettingsAlert: Bool = false
-        var pendingSettingsReason: String = ""
     }
 
     enum Action {

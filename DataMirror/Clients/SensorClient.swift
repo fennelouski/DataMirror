@@ -1399,6 +1399,9 @@ private final class LiveSensorClient: @unchecked Sendable {
         case .notDetermined: String(
             localized: "Not requested yet"
         )
+        case .requested: String(
+            localized: "Requested"
+        )
         case .restricted: String(
             localized: "Restricted by policy"
         )

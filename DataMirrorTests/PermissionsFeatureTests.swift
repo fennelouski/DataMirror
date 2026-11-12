@@ -76,6 +76,62 @@ struct PermissionsFeatureTests {
         await store.send(.scenePhaseChanged(.inactive))
     }
 
+    /// State with the location detail screen open, as if the user drilled in.
+    private func stateWithLocationDetailOpen(status: PermissionStatus) -> PermissionsFeature.State {
+        let initial = items(locationStatus: status)
+        var state = PermissionsFeature.State(permissions: IdentifiedArrayOf(uniqueElements: initial))
+        state.path.append(.permissionDetail(PermissionDetailFeature.State(
+            item: initial.first { $0.id == .locationWhenInUse }!
+        )))
+        return state
+    }
+
+    @Test
+    func requestPromptsThenReloadsEveryPermission() async {
+        let requested = LockIsolated<[PermissionType]>([])
+        let store = TestStore(initialState: stateWithLocationDetailOpen(status: .notDetermined)) {
+            PermissionsFeature()
+        } withDependencies: {
+            $0.permissionClient.request = { type_ in
+                requested.withValue { $0.append(type_) }
+                return .granted
+            }
+            $0.permissionClient.loadAll = { [self] in items(locationStatus: .granted) }
+        }
+
+        let refreshed = items(locationStatus: .granted)
+        let id = store.state.path.ids[0]
+        await store.send(.path(.element(id: id, action: .permissionDetail(.requestPermissionTapped(.locationWhenInUse)))))
+        await store.receive(\.permissionsLoaded) {
+            $0.permissions = IdentifiedArrayOf(uniqueElements: refreshed)
+            $0.path[id: id] = .permissionDetail(PermissionDetailFeature.State(
+                item: refreshed.first { $0.id == .locationWhenInUse }!
+            ))
+        }
+        #expect(requested.value == [.locationWhenInUse])
+    }
+
+    /// The bug this guards against: asking again for a permission iOS will not
+    /// prompt for a second time.
+    @Test(arguments: [PermissionStatus.denied, .granted, .requested, .restricted, .notAvailable])
+    func requestIsNeverSentOnceAnswered(status: PermissionStatus) async {
+        let requested = LockIsolated(false)
+        let store = TestStore(initialState: stateWithLocationDetailOpen(status: status)) {
+            PermissionsFeature()
+        } withDependencies: {
+            $0.permissionClient.request = { _ in
+                requested.setValue(true)
+                return .granted
+            }
+            $0.permissionClient.loadAll = { [self] in items(locationStatus: status) }
+        }
+
+        let id = store.state.path.ids[0]
+        await store.send(.path(.element(id: id, action: .permissionDetail(.requestPermissionTapped(.locationWhenInUse)))))
+        await store.receive(\.permissionsLoaded)
+        #expect(!requested.value)
+    }
+
     @Test
     func firstAppearLoadsWithSpinnerThenPopulates() async {
         let loaded = items(locationStatus: .granted)
